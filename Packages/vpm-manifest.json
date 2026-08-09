@@ -5,6 +5,12 @@
     },
     "net.ureishi.qvpen": {
       "version": "3.3.15"
+    },
+    "net.kwxxw.yama-stream": {
+      "version": "1.5.18"
+    },
+    "net.kwxxw.yamachan-web-unit": {
+      "version": "1.1.0"
     }
   },
   "locked": {
@@ -22,6 +28,18 @@
       "version": "3.3.15",
       "dependencies": {
         "com.vrchat.worlds": "^3.5.0"
+      }
+    },
+    "net.kwxxw.yama-stream": {
+      "version": "1.5.18",
+      "dependencies": {
+        "com.vrchat.worlds": ">=3.7.1"
+      }
+    },
+    "net.kwxxw.yamachan-web-unit": {
+      "version": "1.1.0",
+      "dependencies": {
+        "com.vrchat.worlds": ">=3.6.0"
       }
     }
   }

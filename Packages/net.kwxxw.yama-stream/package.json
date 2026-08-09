@@ -1,0 +1,23 @@
+{
+  "name": "net.kwxxw.yama-stream",
+  "displayName": "YamaPlayer",
+  "version": "1.5.18",
+  "unity": "2022.3",
+  "description": "Video player for VRChat.",
+  "author": {
+    "name": "kwxxw",
+    "url": "https://yamadev.booth.pm"
+  },
+  "legacyFolders": {
+    "Assets\\Yamadev\\YamaStream": "af99c59180c62fb41ab655b73f426e61"
+  },
+  "vpmDependencies": {
+    "com.vrchat.worlds": ">=3.7.1"
+  },
+  "samples": [
+    {
+      "displayName": "AVProHelper",
+      "path": "Samples~/AVProHelper"
+    }
+  ]
+}

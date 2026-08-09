@@ -1,0 +1,21 @@
+{
+    "name": "Yamadev.YamachanWebUnit.Editor",
+    "references": [
+        "GUID:3c1bc1267eab5884ebe7f232c09ee0d9",
+        "GUID:99835874ee819da44948776e0df4ff1d",
+        "GUID:84265b35cca3905448e623ef3903f0ff",
+        "GUID:54ab6529836f0fc468c1cc870861b7ce",
+        "GUID:1c1872759067452448543f856b252b80"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}
