@@ -15,7 +15,6 @@ Material:
   - _BICUBIC_SAMPLING_ON
   - _EMISSION_ON
   - _NORMALMAP_ON
-  - _REFLECTIONS_ON
   - _SPECULAR_HIGHLIGHTS_ON
   m_InvalidKeywords: []
   m_LightmapFlags: 0
@@ -26,6 +25,7 @@ Material:
     RenderType: Opaque
   disabledShaderPasses:
   - ALWAYS
+  - GRABPASS
   m_LockedProperties: 
   m_SavedProperties:
     serializedVersion: 3
@@ -214,6 +214,7 @@ Material:
     - _DebugFlags: 0
     m_Floats:
     - _ACES: 0
+    - _AdditiveLightVolumeStrength: 1
     - _AdditiveLightVolumesToggle: 1
     - _AlphaMaskChannel: 0
     - _AlphaMaskOpacity: 1
@@ -304,6 +305,8 @@ Material:
     - _LightVolumeBias: 0
     - _LightVolumeSpecularity: 0
     - _LightVolumeSpecularityStrength: 1
+    - _LightVolumeStrength: 1
+    - _LightVolumesToggle: 1
     - _MaterialDebugMode: 0
     - _MaterialResetCheck: 1
     - _MaxHeightSteps: 16

@@ -15,7 +15,7 @@ PrefabInstance:
     - target: {fileID: 1096654743822591834, guid: c65b8f1f1bfc9444ca997fd09fb3c3cd, type: 3}
       propertyPath: serializedProgramAsset
       value: 
-      objectReference: {fileID: 11400000, guid: aeb49d3cb6440c04cb10babe12cd7310, type: 2}
+      objectReference: {fileID: 11400000, guid: 16c8832bbf97e4b468a33fa20f6166f9, type: 2}
     - target: {fileID: 1535488557591926574, guid: c65b8f1f1bfc9444ca997fd09fb3c3cd, type: 3}
       propertyPath: m_Materials.Array.data[0]
       value: 
@@ -99,7 +99,7 @@ PrefabInstance:
     - target: {fileID: 5440014956582031072, guid: c65b8f1f1bfc9444ca997fd09fb3c3cd, type: 3}
       propertyPath: serializedProgramAsset
       value: 
-      objectReference: {fileID: 11400000, guid: 4d00ae6a54d40304eab52593720cb160, type: 2}
+      objectReference: {fileID: 11400000, guid: a5fe296b45d79c84cadcb52f1fbdf2eb, type: 2}
     - target: {fileID: 6799890425185727992, guid: c65b8f1f1bfc9444ca997fd09fb3c3cd, type: 3}
       propertyPath: m_Name
       value: Switch_Video
