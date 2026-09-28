@@ -261,6 +261,12 @@
         "com.unity.ai.navigation": "1.1.5"
       }
     },
+    "jp.lilxyzw.liltoon": {
+      "version": "file:jp.lilxyzw.liltoon",
+      "depth": 0,
+      "source": "embedded",
+      "dependencies": {}
+    },
     "net.ureishi.qvpen": {
       "version": "file:net.ureishi.qvpen",
       "depth": 0,

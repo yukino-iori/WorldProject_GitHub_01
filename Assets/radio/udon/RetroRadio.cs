@@ -1,0 +1,594 @@
+using UdonSharp;
+using UnityEngine;
+using VRC.SDKBase;
+using VRC.Udon;
+
+/// <summary>
+/// レトロラジオ本体（同期対応）
+/// ・TogglePower：電源ON/OFF（ONにすると常に通常再生から開始）
+/// ・ToggleMode ：通常再生（順番）⇔ ランダム再生
+/// ・noise_A：電源ON中、曲にずっと薄く重ねるノイズ
+/// ・noise_B：曲のつなぎ目でフェードイン/アウトするノイズ
+/// ・knob_on_off：OFF=-24度 / ON=24度 にカチッと切り替え
+/// ・knob_L：クリック時・曲の切り替え時に左右に回してチューニング演出
+/// ・Sync To Everyone：ONでその場の全員に同じ曲が流れる
+/// radio（ルート）に付けてください。クリック処理は RadioButton から呼ばれます。
+/// </summary>
+[UdonBehaviourSyncMode(BehaviourSyncMode.Manual)]
+public class RetroRadio : UdonSharpBehaviour
+{
+    [Header("Sync")]
+    [Tooltip("ON：その場の全員に同じ曲が流れる／OFF：クリックした本人だけに流れる")]
+    [SerializeField] private bool syncToEveryone = true;
+
+    [Header("Audio Sources")]
+    [Tooltip("音楽用（Loopオフ）")]
+    [SerializeField] private AudioSource musicSource;
+    [Tooltip("noise_A用（常時うっすら）")]
+    [SerializeField] private AudioSource noiseASource;
+    [Tooltip("noise_B用（曲のつなぎ目）")]
+    [SerializeField] private AudioSource noiseBSource;
+    [Tooltip("つまみのクリック音用（任意）")]
+    [SerializeField] private AudioSource sfxSource;
+
+    [Header("Music（全10曲・上から順に通常再生）")]
+    [Tooltip("好きな音源をドラッグ＆ドロップで差し替えできます")]
+    [SerializeField] private AudioClip[] musicClips = new AudioClip[10];
+
+    [Header("Noise / SE")]
+    [SerializeField] private AudioClip noiseAClip;
+    [SerializeField] private AudioClip noiseBClip;
+    [SerializeField] private AudioClip knobClickClip;
+    [Tooltip("電源つまみでクリック音を鳴らす")]
+    [SerializeField] private bool clickOnPower = true;
+    [Tooltip("チューニングつまみでクリック音を鳴らす")]
+    [SerializeField] private bool clickOnTune = false;
+
+    [Header("Volume")]
+    [Range(0f, 1f)] [SerializeField] private float musicVolume = 0.8f;
+    [Tooltip("曲に常に重ねるnoise_Aの音量")]
+    [Range(0f, 1f)] [SerializeField] private float noiseAVolume = 0.03f;
+    [Tooltip("つなぎ目のnoise_Bの最大音量")]
+    [Range(0f, 1f)] [SerializeField] private float noiseBVolume = 0.2f;
+
+    [Header("Timing（秒）")]
+    [Tooltip("曲間でnoise_Bだけが鳴る時間（最短）")]
+    [SerializeField] private float gapMin = 1.0f;
+    [Tooltip("曲間でnoise_Bだけが鳴る時間（最長）")]
+    [SerializeField] private float gapMax = 2.0f;
+    [Tooltip("次の曲のフェードイン＆noise_Bフェードアウトの時間")]
+    [SerializeField] private float fadeInTime = 1.0f;
+    [Tooltip("曲の終わり何秒前からnoise_Bを重ねるか")]
+    [SerializeField] private float outroTime = 1.5f;
+    [Tooltip("モード切替時に今の曲を消す時間")]
+    [SerializeField] private float switchFadeTime = 0.4f;
+    [Tooltip("電源ON/OFF時のフェード時間")]
+    [SerializeField] private float powerFadeTime = 0.6f;
+
+    [Header("Power Knob（knob_on_off）")]
+    [SerializeField] private Transform powerKnob;
+    [SerializeField] private Vector3 powerKnobAxis = new Vector3(0f, 0f, 1f);
+    [SerializeField] private float powerOffAngle = -24f;
+    [SerializeField] private float powerOnAngle = 24f;
+    [Tooltip("カチッと切り替わる時間（短いほどキビキビ）")]
+    [SerializeField] private float powerSnapTime = 0.08f;
+
+    [Header("Tune Knob（knob_L）")]
+    [SerializeField] private Transform tuneKnob;
+    [SerializeField] private Vector3 tuneKnobAxis = new Vector3(0f, 0f, 1f);
+    [Tooltip("左右に振る角度")]
+    [SerializeField] private float tuneAngle = 40f;
+    [Tooltip("左右に振る回数")]
+    [SerializeField] private int tuneCycles = 3;
+    [Tooltip("チューニング演出の全体時間")]
+    [SerializeField] private float tuneDuration = 2.7f;
+    [Tooltip("曲が自動で切り替わるときもチューニング演出をする")]
+    [SerializeField] private bool tuneOnSongChange = true;
+    [Tooltip("電源ONのときもチューニング演出をする")]
+    [SerializeField] private bool tuneOnPowerOn = false;
+
+    // ===== 同期データ =====
+    [UdonSynced] private bool syncPowerOn = false;
+    [UdonSynced] private bool syncRandom = false;
+    [UdonSynced] private int syncIndex = -1;
+    [UdonSynced] private int syncSongStartMs = 0;
+    [UdonSynced] private int syncSongSeq = 0;
+    [UdonSynced] private int syncModeCount = 0;
+
+    private const int PHASE_IDLE = 0;
+    private const int PHASE_GAP = 1;       // noise_Bのみ（曲間）
+    private const int PHASE_MUSIC_IN = 2;  // 曲フェードイン ＋ noise_Bフェードアウト
+    private const int PHASE_PLAYING = 3;   // 曲再生中
+    private const int PHASE_OUTRO = 4;     // 曲フェードアウト ＋ noise_Bフェードイン
+    private const int PHASE_STOPPING = 5;  // 電源OFF
+
+    private bool isPowerOn = false;
+    private bool isRandom = false;
+    private int phase = PHASE_IDLE;
+    private float phaseTimer = 0f;
+    private float gapDuration = 0f;
+    private float musicFrom = 0f;
+    private float noiseBFrom = 0f;
+    private int currentIndex = -1;
+
+    private int lastSongSeq = 0;
+    private int lastModeCount = 0;
+    private bool hasReceived = false;
+    private bool started = false;
+    private bool pendingDeserialization = false;
+
+    // つまみアニメ用
+    private Quaternion powerKnobBase;
+    private Quaternion tuneKnobBase;
+    private bool powerAnimating = false;
+    private float powerAnimT = 0f;
+    private float powerFromAngle = 0f;
+    private float powerToAngle = 0f;
+    private float powerCurrentAngle = 0f;
+    private bool tuneAnimating = false;
+    private float tuneAnimT = 0f;
+
+    private void Start()
+    {
+        InitSource(musicSource, false);
+        InitSource(noiseASource, true);
+        InitSource(noiseBSource, true);
+
+        if (powerKnob != null)
+        {
+            powerKnobBase = powerKnob.localRotation;
+            powerCurrentAngle = powerOffAngle;
+            SetKnobAngle(powerKnob, powerKnobBase, powerKnobAxis, powerOffAngle);
+        }
+        if (tuneKnob != null)
+        {
+            tuneKnobBase = tuneKnob.localRotation;
+        }
+
+        started = true;
+
+        // Startより先に同期データが届いていた場合はここで反映
+        if (pendingDeserialization)
+        {
+            pendingDeserialization = false;
+            OnDeserialization();
+        }
+    }
+
+    private void InitSource(AudioSource src, bool loop)
+    {
+        if (src == null) return;
+        src.playOnAwake = false;
+        src.loop = loop;
+        src.volume = 0f;
+        src.Stop();
+    }
+
+    private bool SourcesReady()
+    {
+        return musicSource != null && noiseASource != null && noiseBSource != null;
+    }
+
+    // ===== ボタンから呼ばれるイベント =====
+
+    public void TogglePower()
+    {
+        if (!SourcesReady()) return;
+
+        TakeOwnership();
+        ApplyPower(!isPowerOn, true);
+
+        if (syncToEveryone)
+        {
+            syncPowerOn = isPowerOn;
+            syncRandom = isRandom;
+            syncIndex = -1;
+            lastModeCount = syncModeCount;
+            lastSongSeq = syncSongSeq;
+            RequestSerialization();
+        }
+    }
+
+    public void ToggleMode()
+    {
+        if (!isPowerOn) return;
+
+        TakeOwnership();
+        ApplyModeSwitch(!isRandom, true);
+
+        if (syncToEveryone)
+        {
+            syncRandom = isRandom;
+            syncModeCount++;
+            lastModeCount = syncModeCount;
+            syncIndex = -1;
+            RequestSerialization();
+        }
+    }
+
+    // ===== 同期 =====
+
+    private void TakeOwnership()
+    {
+        if (!syncToEveryone) return;
+        VRCPlayerApi local = Networking.LocalPlayer;
+        if (local == null) return;
+        if (!Networking.IsOwner(gameObject))
+        {
+            Networking.SetOwner(local, gameObject);
+        }
+    }
+
+    // 曲選びやタイミングを決める役（ローカル時は常に自分）
+    private bool CanDrive()
+    {
+        if (!syncToEveryone) return true;
+        if (Networking.LocalPlayer == null) return true;
+        return Networking.IsOwner(gameObject);
+    }
+
+    public override void OnDeserialization()
+    {
+        if (!syncToEveryone || !SourcesReady()) return;
+        if (!started)
+        {
+            pendingDeserialization = true;
+            return;
+        }
+        if (Networking.IsOwner(gameObject)) return;
+
+        bool first = !hasReceived;
+        hasReceived = true;
+
+        // 電源
+        if (syncPowerOn != isPowerOn)
+        {
+            ApplyPower(syncPowerOn, !first);
+        }
+
+        if (!isPowerOn)
+        {
+            lastModeCount = syncModeCount;
+            lastSongSeq = syncSongSeq;
+            return;
+        }
+
+        // モード切替（チューニングつまみが押された）
+        if (syncModeCount != lastModeCount)
+        {
+            lastModeCount = syncModeCount;
+            if (!first) ApplyModeSwitch(syncRandom, true);
+        }
+        isRandom = syncRandom;
+
+        // 新しい曲が始まった
+        if (syncSongSeq != lastSongSeq)
+        {
+            lastSongSeq = syncSongSeq;
+            if (syncIndex >= 0 && musicClips != null && syncIndex < musicClips.Length)
+            {
+                currentIndex = syncIndex;
+                float offset = (Networking.GetServerTimeInMilliseconds() - syncSongStartMs) / 1000f;
+                PlaySongAt(syncIndex, offset);
+            }
+        }
+    }
+
+    // ===== 状態の切り替え =====
+
+    private void ApplyPower(bool on, bool effects)
+    {
+        isPowerOn = on;
+
+        if (effects && clickOnPower) PlayClick();
+        if (effects) StartPowerKnobAnim();
+        else SnapPowerKnob();
+
+        if (on)
+        {
+            isRandom = false;       // 電源ONは常に通常再生から
+            currentIndex = -1;      // 1曲目から
+            StartLoop(noiseASource, noiseAClip);
+            if (effects && tuneOnPowerOn) StartTuneKnobAnim();
+            BeginGap();
+        }
+        else
+        {
+            SetPhase(PHASE_STOPPING);
+        }
+    }
+
+    private void ApplyModeSwitch(bool random, bool effects)
+    {
+        if (effects && clickOnTune) PlayClick();
+        if (effects) StartTuneKnobAnim();
+        isRandom = random;
+        BeginGap(); // 今の曲を切り上げてnoise_Bを挟んで次の曲へ
+    }
+
+    // ===== 再生処理 =====
+
+    private void BeginGap()
+    {
+        StartLoop(noiseBSource, noiseBClip);
+        gapDuration = Random.Range(gapMin, Mathf.Max(gapMin, gapMax));
+        SetPhase(PHASE_GAP);
+    }
+
+    private void Update()
+    {
+        UpdateKnobAnims();
+        UpdateNoiseA();
+
+        if (phase == PHASE_IDLE) return;
+        phaseTimer += Time.deltaTime;
+
+        if (phase == PHASE_GAP)
+        {
+            // noise_Bを上げる（曲終わりから来た場合は既に上がっている）
+            float tn = Ratio(phaseTimer, switchFadeTime);
+            noiseBSource.volume = Mathf.Lerp(noiseBFrom, noiseBVolume, tn);
+
+            // モード切替で曲途中から来た場合は曲をすばやく消す
+            if (musicSource.isPlaying)
+            {
+                float tm = Ratio(phaseTimer, switchFadeTime);
+                musicSource.volume = Mathf.Lerp(musicFrom, 0f, tm);
+                if (tm >= 1f) musicSource.Stop();
+            }
+
+            // 次の曲を決めるのは持ち主だけ（ほかの人は同期データを待つ）
+            if (CanDrive() && phaseTimer >= gapDuration)
+            {
+                StartNextSong();
+            }
+        }
+        else if (phase == PHASE_MUSIC_IN)
+        {
+            float t = Ratio(phaseTimer, fadeInTime);
+            musicSource.volume = Mathf.Lerp(0f, musicVolume, t);
+            noiseBSource.volume = Mathf.Lerp(noiseBFrom, 0f, t);
+
+            if (t >= 1f)
+            {
+                noiseBSource.Stop();
+                SetPhase(PHASE_PLAYING);
+            }
+        }
+        else if (phase == PHASE_PLAYING)
+        {
+            AudioClip clip = musicSource.clip;
+            bool ended = (clip == null) || !musicSource.isPlaying;
+            if (ended || clip.length - musicSource.time <= outroTime)
+            {
+                StartLoop(noiseBSource, noiseBClip);
+                if (tuneOnSongChange) StartTuneKnobAnim(); // 曲の切り替わりでチューニング演出
+                SetPhase(PHASE_OUTRO);
+            }
+        }
+        else if (phase == PHASE_OUTRO)
+        {
+            float t = Ratio(phaseTimer, outroTime);
+            musicSource.volume = Mathf.Lerp(musicFrom, 0f, t);
+            noiseBSource.volume = Mathf.Lerp(noiseBFrom, noiseBVolume, t);
+
+            if (t >= 1f || !musicSource.isPlaying)
+            {
+                musicSource.Stop();
+                gapDuration = Random.Range(gapMin, Mathf.Max(gapMin, gapMax));
+                SetPhase(PHASE_GAP);
+            }
+        }
+        else if (phase == PHASE_STOPPING)
+        {
+            float t = Ratio(phaseTimer, powerFadeTime);
+            musicSource.volume = Mathf.Lerp(musicFrom, 0f, t);
+            noiseBSource.volume = Mathf.Lerp(noiseBFrom, 0f, t);
+
+            if (t >= 1f)
+            {
+                musicSource.Stop();
+                noiseBSource.Stop();
+                currentIndex = -1;
+                phase = PHASE_IDLE;
+            }
+        }
+    }
+
+    private void UpdateNoiseA()
+    {
+        if (noiseASource == null || !noiseASource.isPlaying) return;
+
+        float target = isPowerOn ? noiseAVolume : 0f;
+        float rate = Mathf.Max(noiseAVolume, 0.01f) / Mathf.Max(powerFadeTime, 0.01f);
+        noiseASource.volume = Mathf.MoveTowards(noiseASource.volume, target, rate * Time.deltaTime);
+
+        if (!isPowerOn && noiseASource.volume <= 0f)
+        {
+            noiseASource.Stop();
+        }
+    }
+
+    private void StartNextSong()
+    {
+        int index = PickIndex();
+        if (index < 0)
+        {
+            // 曲が未登録ならnoise_Bだけ流し続ける
+            gapDuration = 9999f;
+            SetPhase(PHASE_GAP);
+            return;
+        }
+
+        currentIndex = index;
+        PlaySongAt(index, 0f);
+
+        if (syncToEveryone && CanDrive())
+        {
+            syncIndex = index;
+            syncSongStartMs = Networking.GetServerTimeInMilliseconds();
+            syncSongSeq++;
+            lastSongSeq = syncSongSeq;
+            RequestSerialization();
+        }
+    }
+
+    // 曲を指定位置（秒）から再生（あとから来た人は途中から）
+    private void PlaySongAt(int index, float offset)
+    {
+        AudioClip clip = musicClips[index];
+        if (clip == null) return;
+
+        if (offset < 0f) offset = 0f;
+        if (offset >= clip.length - outroTime) return; // もう終わり間際なら次の曲を待つ
+
+        musicSource.clip = clip;
+        musicSource.volume = 0f;
+        musicSource.Play();
+        musicSource.time = offset;
+        SetPhase(PHASE_MUSIC_IN);
+    }
+
+    private int PickIndex()
+    {
+        if (musicClips == null || musicClips.Length == 0) return -1;
+        int len = musicClips.Length;
+
+        if (!isRandom)
+        {
+            // 通常再生：次の番号から順番に（空欄は飛ばす）
+            for (int i = 1; i <= len; i++)
+            {
+                int idx = (currentIndex + i + len) % len;
+                if (musicClips[idx] != null) return idx;
+            }
+            return -1;
+        }
+
+        // ランダム再生：直前と同じ曲を避ける
+        int validCount = 0;
+        int lastValid = -1;
+        for (int i = 0; i < len; i++)
+        {
+            if (musicClips[i] != null)
+            {
+                validCount++;
+                lastValid = i;
+            }
+        }
+        if (validCount == 0) return -1;
+        if (validCount == 1) return lastValid;
+
+        for (int tries = 0; tries < 20; tries++)
+        {
+            int r = Random.Range(0, len);
+            if (musicClips[r] != null && r != currentIndex) return r;
+        }
+        for (int i = 0; i < len; i++)
+        {
+            if (musicClips[i] != null && i != currentIndex) return i;
+        }
+        return -1;
+    }
+
+    // ===== つまみアニメ =====
+
+    private void StartPowerKnobAnim()
+    {
+        if (powerKnob == null) return;
+        powerFromAngle = powerCurrentAngle;
+        powerToAngle = isPowerOn ? powerOnAngle : powerOffAngle;
+        powerAnimT = 0f;
+        powerAnimating = true;
+    }
+
+    private void SnapPowerKnob()
+    {
+        if (powerKnob == null) return;
+        powerAnimating = false;
+        powerCurrentAngle = isPowerOn ? powerOnAngle : powerOffAngle;
+        SetKnobAngle(powerKnob, powerKnobBase, powerKnobAxis, powerCurrentAngle);
+    }
+
+    private void StartTuneKnobAnim()
+    {
+        if (tuneKnob == null) return;
+        tuneAnimT = 0f;
+        tuneAnimating = true;
+    }
+
+    private void UpdateKnobAnims()
+    {
+        // knob_on_off：カチッと切り替え
+        if (powerAnimating)
+        {
+            powerAnimT += Time.deltaTime / Mathf.Max(powerSnapTime, 0.01f);
+            float t = Mathf.Clamp01(powerAnimT);
+            float eased = 1f - (1f - t) * (1f - t) * (1f - t); // 最後にピタッと止まる
+            powerCurrentAngle = Mathf.Lerp(powerFromAngle, powerToAngle, eased);
+            SetKnobAngle(powerKnob, powerKnobBase, powerKnobAxis, powerCurrentAngle);
+            if (t >= 1f) powerAnimating = false;
+        }
+
+        // knob_L：左右に数回振って元に戻る
+        if (tuneAnimating)
+        {
+            tuneAnimT += Time.deltaTime / Mathf.Max(tuneDuration, 0.01f);
+            float p = Mathf.Clamp01(tuneAnimT);
+            float wave = Mathf.Sin(p * tuneCycles * 2f * Mathf.PI);
+            float damping = 1f - 0.4f * p; // 後半ほど少し小さく
+            float angle = tuneAngle * wave * damping;
+            SetKnobAngle(tuneKnob, tuneKnobBase, tuneKnobAxis, angle);
+
+            if (p >= 1f)
+            {
+                SetKnobAngle(tuneKnob, tuneKnobBase, tuneKnobAxis, 0f);
+                tuneAnimating = false;
+            }
+        }
+    }
+
+    private void SetKnobAngle(Transform knob, Quaternion baseRot, Vector3 axis, float angle)
+    {
+        if (knob == null) return;
+        knob.localRotation = baseRot * Quaternion.AngleAxis(angle, axis);
+    }
+
+    // ===== ユーティリティ =====
+
+    private void StartLoop(AudioSource src, AudioClip clip)
+    {
+        if (src == null || src.isPlaying) return;
+        src.clip = clip;
+        src.loop = true;
+        src.volume = 0f;
+        src.Play();
+        // 毎回同じノイズに聞こえないよう開始位置をずらす
+        if (clip != null && clip.length > 0.1f)
+        {
+            src.time = Random.Range(0f, clip.length * 0.9f);
+        }
+    }
+
+    private void SetPhase(int newPhase)
+    {
+        phase = newPhase;
+        phaseTimer = 0f;
+        musicFrom = musicSource.volume;
+        noiseBFrom = noiseBSource.volume;
+    }
+
+    private void PlayClick()
+    {
+        if (sfxSource != null && knobClickClip != null)
+        {
+            sfxSource.PlayOneShot(knobClickClip);
+        }
+    }
+
+    private float Ratio(float time, float duration)
+    {
+        if (duration <= 0.0001f) return 1f;
+        return Mathf.Clamp01(time / duration);
+    }
+}

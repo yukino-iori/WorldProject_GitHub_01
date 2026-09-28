@@ -1,6 +1,7 @@
 ﻿
 using System.Collections.Generic;
 using UnityEngine;
+using VRC.SDKBase;
 
 namespace VRC.SDK3.ClientSim
 {
@@ -20,7 +21,6 @@ namespace VRC.SDK3.ClientSim
         [SerializeField]
         private GameObject proxyHighlightPrefab;
         
-        // TODO wrap highlightFX to make it easier to test/replace.
         private HighlightsFX _highlightsFX;
         
         private readonly Dictionary<GameObject, ClientSimHighlightProxy> _objectRenderProxies =
@@ -61,7 +61,8 @@ namespace VRC.SDK3.ClientSim
                 _proxyMeshQueue.Enqueue(proxy);
                 proxy.DisableProxy();
             }
-            
+
+            // Disable across ALL renderers on the object in case OutlineRenderers changed while we were holding it.
             List<Renderer> renderers = GatherRenderers(obj, true);
             foreach (var rend in renderers)
             {
@@ -74,29 +75,73 @@ namespace VRC.SDK3.ClientSim
             _highlightsFX.EnableOutline(rend, isEnabled);
         }
 
-        private List<Renderer> GatherRenderers(GameObject obj, bool findDisabled)
+        private List<Renderer> GatherRenderers(GameObject obj, bool forDisabling)
         {
+            List<Renderer> results = new List<Renderer>();
+
             if(obj == null)
             {
-                return new List<Renderer>();
+                return results;
             }
-            List<Renderer> results = new List<Renderer>();
-            foreach (var rend in obj.GetComponentsInChildren<Renderer>(findDisabled))
+
+            if (!forDisabling)
             {
-                if (!rend.enabled || rend.isPartOfStaticBatch)
+                // Use manually defined outline renderers for activating the highlight if given.
+                // This option allows disabled renderers.
+                if (obj.TryGetComponent(out VRC_Pickup pickup) && pickup.OutlineRenderers != null)
                 {
-                    continue;
+                    foreach (Renderer customRend in pickup.OutlineRenderers)
+                    {
+                        if (customRend != null  && customRend.transform.IsChildOf(obj.transform) && IsRendererValid(customRend, true))
+                        {
+                            results.Add(customRend);
+                        }
+                    }
                 }
-                MeshFilter filter = rend.GetComponent<MeshFilter>();
-                if (filter == null || filter.sharedMesh == null)
+            }
+
+            if (results.Count == 0)
+            {
+                foreach (var rend in obj.GetComponentsInChildren<Renderer>(forDisabling))
                 {
-                    continue;
+                    if (IsRendererValid(rend, forDisabling))
+                    {
+                        results.Add(rend);
+                    }
                 }
-                
-                results.Add(rend);
             }
 
             return results;
+
+            bool IsRendererValid(Renderer rend, bool allowDisabled)
+            {
+                bool canProcess = !rend.isPartOfStaticBatch && (allowDisabled || (rend.enabled && rend.gameObject.activeInHierarchy));
+                if (!canProcess)
+                {
+                    return false;
+                }
+
+                if (rend is MeshRenderer)
+                {
+                    if (!rend.TryGetComponent(out MeshFilter filter) || filter.sharedMesh == null)
+                    {
+                        return false;
+                    }
+                }
+                else if (rend is SkinnedMeshRenderer skinnedRend)
+                {
+                    if (skinnedRend.sharedMesh == null)
+                    {
+                        return false;
+                    }
+                }
+                else
+                {
+                    return false;
+                }
+
+                return true;
+            }
         }
 
         private Renderer GetProxyHighlight(GameObject obj)

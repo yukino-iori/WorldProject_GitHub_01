@@ -1,6 +1,7 @@
 ﻿
 using UdonSharp;
 using UdonSharp.Compiler;
+using UnityEditor;
 using VRC.SDKBase.Editor.BuildPipeline;
 
 namespace UdonSharpEditor
@@ -9,15 +10,16 @@ namespace UdonSharpEditor
     {
         public int callbackOrder => 100;
 
-        public bool OnBuildRequested(VRCSDKRequestedBuildType requestedBuildType)
+        public bool OnBuildRequested(VRCSDKRequestedBuildType requestedBuildType, BuildTarget buildTarget)
         {
-            if (requestedBuildType == VRCSDKRequestedBuildType.Avatar)
+            if (requestedBuildType == VRCSDKRequestedBuildType.Avatar
+                )
                 return true;
 
             if (UdonSharpSettings.GetSettings().disableUploadCompile)
                 return true;
 
-            UdonSharpCompilerV1.CompileSync(new UdonSharpCompileOptions() { IsEditorBuild = false });
+            UdonSharpCompilerV1.CompileSync(new UdonSharpCompileOptions() { IsEditorBuild = false, CurrentBuildTarget =  buildTarget });
             UdonSharpEditorCache.SaveAllCache();
 
             if (UdonSharpProgramAsset.AnyUdonSharpScriptHasError())

@@ -36,7 +36,7 @@ namespace VRC.SDK3.ClientSim
     /// - ClientSimReadyEvent
     /// </remarks>
     [AddComponentMenu("")]
-    public class ClientSimMain : ClientSimBehaviour
+    public class ClientSimMain : ClientSimBehaviour, IDisposable
     {
         private static readonly string _systemPrefabPath = Path.Combine("ClientSim", "Prefabs", "ClientSimSystem");
 
@@ -86,6 +86,7 @@ namespace VRC.SDK3.ClientSim
         private ClientSimPlayer _player;
 
         private bool _isReady;
+
 
         public static void CreateInstance(
             ClientSimSettings settings,
@@ -172,12 +173,21 @@ namespace VRC.SDK3.ClientSim
             }
         }
 
-        // Used in tests
+        // Used in tests and domain reload handling
         public static void RemoveInstance()
         {
             if (HasInstance())
             {
-                DestroyImmediate(_instance.gameObject);
+                GameObject instanceGameObject = _instance.gameObject;
+                _instance.Dispose();
+                if (Application.isPlaying)
+                {
+                    Destroy(instanceGameObject);
+                }
+                else
+                {
+                    DestroyImmediate(instanceGameObject);
+                }
             }
         }
         
@@ -201,20 +211,7 @@ namespace VRC.SDK3.ClientSim
 
         private void OnDestroy()
         {
-            if (_proxyObject)
-            {
-                _proxyObject.DestroyProxy();    
-            }
-
-            _playerManager?.Dispose();
-
-            if (_instance != this)
-            {
-                return;
-            }
-
-            RemoveSDKLinks();
-            _instance = null;
+            Dispose();
         }
 
         private void Initialize(
@@ -300,10 +297,32 @@ namespace VRC.SDK3.ClientSim
             
             storeManager = new ClientSimStoreManager(_eventDispatcher, new ClientSimUdonManagerEventSender(UdonManager.Instance), _playerManager);
 
+
             // Initialize SDK links after everything has been created and initialized.
             SetupSDKLinks();
         }
-        
+
+        public void Dispose()
+        {
+            if (_proxyObject)
+            {
+                _proxyObject.DestroyProxy();    
+            }
+
+            _playerManager?.Dispose();
+            _udonManager?.Dispose();
+            _interactiveLayerProvider?.Dispose();
+
+
+            if (_instance != this)
+            {
+                return;
+            }
+
+            RemoveSDKLinks();
+            _instance = null;
+        }
+
         #region Platform Management
 
         private Vector2 CurrentResolution;
@@ -388,6 +407,7 @@ namespace VRC.SDK3.ClientSim
                     _player.EnablePlayer(_sceneManager.GetSpawnPoint(false), _sceneManager.GetSpawnRadius());
                 }
             }
+
 
             // Notify UdonManager that ClientSim is ready. This will then notify all registered UdonBehaviours that
             // they can begin running. Udon will initialize in the next frame in the next Update call.
@@ -492,7 +512,7 @@ namespace VRC.SDK3.ClientSim
 
             var possibleMatches = VRC.Tools.FindComponentInPossibleClones(sourceObject.gameObject, referenceComponent, objs);
             
-            Debug.Log($"Found {possibleMatches.Count()} possible matches for {referenceComponent.name} in player objects for {target.displayName}");;
+            //Debug.Log($"Found {possibleMatches.Count()} possible matches for {referenceComponent.name} in player objects for {target.displayName}");;
 
             foreach (Component possibleMatch in possibleMatches)
             {
@@ -510,7 +530,6 @@ namespace VRC.SDK3.ClientSim
                 
                 int matchID = ClientSimNetworkingUtilities.FlattenPlayerViewId(thisID);
                 if (matchID == desiredID) return possibleMatch;
-                Debug.LogError($"Network ID {matchID} for {possibleMatch.name} does not match desired ID {desiredID}");
             }
 
             Debug.LogError($"Failed to find component {referenceComponent.GetType().Name} in player objects for {target.displayName}");
@@ -728,7 +747,7 @@ namespace VRC.SDK3.ClientSim
             VRCPlayerApi._GetCurrentLanguage += ClientSimPlayerManager.GetCurrentLanguage;
             VRCPlayerApi._GetAvailableLanguages += ClientSimPlayerManager.GetAvailableLanguages;
             
-            
+
             VRC_SpatialAudioSource.Initialize += ClientSimSpatialAudioHelper.InitializeAudio;
 
             VRCAVProVideoPlayer.Initialize += ClientSimAVProVideoStub.InitializePlayer;

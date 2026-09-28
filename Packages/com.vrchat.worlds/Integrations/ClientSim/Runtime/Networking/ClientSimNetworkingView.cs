@@ -6,6 +6,7 @@ using VRC.SDK3.Data;
 
 namespace VRC.SDK3.ClientSim
 {
+    [AddComponentMenu("")]
     public class ClientSimNetworkingView : ClientSimBehaviour, IClientSimNetworkId, IClientSimNetworkView
     {
         private int _networkId;

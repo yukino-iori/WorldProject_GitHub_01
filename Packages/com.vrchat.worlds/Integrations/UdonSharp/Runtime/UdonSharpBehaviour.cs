@@ -509,12 +509,16 @@ namespace UdonSharp
 
         void ISerializationCallbackReceiver.OnBeforeSerialize()
         {
+            if (this == null) return; // Unity may trigger serialization callbacks on partially destroyed wrappers!
+
             UnitySerializationUtility.SerializeUnityObject(this, ref serializationData);
             _backingUdonBehaviourDump = _udonSharpBackingUdonBehaviour;
         }
 
         void ISerializationCallbackReceiver.OnAfterDeserialize()
         {
+            if (this == null) return;
+
             UnitySerializationUtility.DeserializeUnityObject(this, ref serializationData);
 
             if (_backingUdonBehaviourDump)

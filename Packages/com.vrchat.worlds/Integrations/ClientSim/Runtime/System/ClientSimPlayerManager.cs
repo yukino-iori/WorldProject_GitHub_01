@@ -45,11 +45,6 @@ namespace VRC.SDK3.ClientSim
             VRCPlayerApi.AllPlayers.Clear();
         }
 
-        ~ClientSimPlayerManager()
-        {
-            Dispose();
-        }
-
         public void Dispose()
         {
             // Prevent sending new events as players are cleared.

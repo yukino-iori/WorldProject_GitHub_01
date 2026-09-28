@@ -5,6 +5,7 @@ using UnityEngine.XR;
 
 namespace VRC.SDK3.ClientSim
 {
+    [AddComponentMenu("")]
     public class ClientSimStackedVRCameraSystem : MonoBehaviour
     {
         [SerializeField]

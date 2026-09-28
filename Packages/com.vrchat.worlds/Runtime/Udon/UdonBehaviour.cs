@@ -32,6 +32,7 @@ using UnityEditor.SceneManagement;
 
 namespace VRC.Udon
 {
+    [AddComponentMenu("VRChat/Udon/Udon Behaviour")]
     public sealed class UdonBehaviour : AbstractUdonBehaviour, ISerializationCallbackReceiver
 #if VRC_CLIENT
         , VRC.Core.Networking.INetworkReadyReceiver
@@ -1350,6 +1351,13 @@ namespace VRC.Udon
                 return false;
             }
 
+#if UNITY_EDITOR
+            if (!UnityEditor.EditorApplication.isPlayingOrWillChangePlaymode)
+            {
+                return false;
+            }
+#endif
+
             if(_udonVM == null)
             {
                 return false;
@@ -1778,6 +1786,13 @@ namespace VRC.Udon
             {
                 return false;
             }
+
+#if UNITY_EDITOR
+            if (!UnityEditor.EditorApplication.isPlayingOrWillChangePlaymode)
+            {
+                return false;
+            }
+#endif
 
             if (_udonVM == null)
             {

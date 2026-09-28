@@ -324,7 +324,7 @@ namespace UdonSharp
                 {
                     if (_programAssetCache != null && fallbackAsset != null && !_programAssetCache.Contains(fallbackAsset))
                     {
-                        Debug.LogWarning($"Repairing program asset '{fallbackAsset}' which Unity has broken");
+                        Debug.LogWarning($"Repairing program asset '{fallbackAsset}'");
                         neededFallback = true;
 
                         string assetPath = AssetDatabase.GetAssetPath(fallbackAsset);

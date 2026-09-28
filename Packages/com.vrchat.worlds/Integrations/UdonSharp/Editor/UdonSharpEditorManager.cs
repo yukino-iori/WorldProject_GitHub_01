@@ -762,18 +762,29 @@ namespace UdonSharpEditor
 
         private static void RunAllUpdates(List<UdonBehaviour> allBehaviours = null)
         {
-            UdonSharpEditorUtility.SetIgnoreEvents(false);
+            try
+            {
+                // End asset imports while running updates. This may speed up Udon updates in large projects.
+                AssetDatabase.StartAssetEditing();
 
-            if (allBehaviours == null)
-                allBehaviours = GetAllUdonBehaviours();
+                UdonSharpEditorUtility.SetIgnoreEvents(false);
 
-            RepairPrefabProgramAssets(allBehaviours);
-            RepairProgramAssetLinks(allBehaviours);
-            UpdateSyncModes(allBehaviours);
-            ValidateHideFlagsOnEmptyUdonBehaviours(allBehaviours);
-            SanitizeProxyBehaviours(GetAllSceneGameObjectsWithUdonBehavioursOrUdonSharpBehaviours(), true, out _);
-            ValidateMatchingProgramSource(allBehaviours);
-            UpdateSerializedProgramAssets(allBehaviours);
+                if (allBehaviours == null)
+                    allBehaviours = GetAllUdonBehaviours();
+
+                RepairPrefabProgramAssets(allBehaviours);
+                RepairProgramAssetLinks(allBehaviours);
+                UpdateSyncModes(allBehaviours);
+                ValidateHideFlagsOnEmptyUdonBehaviours(allBehaviours);
+                SanitizeProxyBehaviours(GetAllSceneGameObjectsWithUdonBehavioursOrUdonSharpBehaviours(), true, out _);
+                ValidateMatchingProgramSource(allBehaviours);
+                UpdateSerializedProgramAssets(allBehaviours);
+            }
+            finally
+            {
+                // Process all pending asset imports now.
+                AssetDatabase.StopAssetEditing();
+            }
         }
 
         internal static bool _didSceneUpgrade;

@@ -704,9 +704,9 @@ namespace VRC.SDK3.ClientSim.Persistence
 
         private void OnDestroy()
         {
-            _eventDispatcher.Unsubscribe<ClientSimOnPlayerJoinedEvent>(OnPlayerJoined);
-            _eventDispatcher.Unsubscribe<ClientSimOnPlayerDataClearedEvent>(OnPlayerDataCleared);
-            _eventDispatcher.Unsubscribe<ClientSimOnPlayerRestoredEvent>(OnPlayerRestored);
+            _eventDispatcher?.Unsubscribe<ClientSimOnPlayerJoinedEvent>(OnPlayerJoined);
+            _eventDispatcher?.Unsubscribe<ClientSimOnPlayerDataClearedEvent>(OnPlayerDataCleared);
+            _eventDispatcher?.Unsubscribe<ClientSimOnPlayerRestoredEvent>(OnPlayerRestored);
         }
 
         private void OnPlayerJoined(ClientSimOnPlayerJoinedEvent payload)

@@ -3,6 +3,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
+using System.Runtime.CompilerServices;
 using System.Threading;
 using JetBrains.Annotations;
 using Unity.Profiling;
@@ -30,10 +31,11 @@ using System.Collections.Concurrent;
 using System.Threading.Tasks;
 #endif
 
+[assembly: InternalsVisibleTo("VRC.Udon.Editor")]
 namespace VRC.Udon
 {
     [AddComponentMenu("")]
-    public class UdonManager : MonoBehaviour, IUdonClientInterface, IUdonSecurityBlacklist<UnityEngine.Object>, IUdonSignatureVerifier
+    public class UdonManager : MonoBehaviour, IUdonClientInterface, IUdonSecurityBlacklist<UnityEngine.Object>, IUdonSignatureVerifier, IDisposable
     {
         public static event Action<IUdonProgram> OnUdonProgramLoaded;
         public static event Action OnUdonReady;
@@ -57,14 +59,31 @@ namespace VRC.Udon
                     return _instance;
                 }
 
+                if (Application.isPlaying)
+                {
+                    _instance = FindObjectOfType<UdonManager>();
+                    if (_instance != null)
+                    {
+                        // Orphaned instance from domain reload at play mode, manually set it up again...
+                        _instance.Setup();
+                        return _instance;
+                    }
+                }
                 GameObject udonManagerGameObject = new GameObject("UdonManager");
                 DontDestroyOnLoad(udonManagerGameObject);
                 _instance = udonManagerGameObject.AddComponent<UdonManager>();
+                udonManagerGameObject.hideFlags = HideFlags.HideInHierarchy;
                 #endif
 
                 return _instance;
             }
         }
+
+        /// <summary>
+        /// Check if an UdonManager instance exists without triggering the creation of one if it doesn't exist already.
+        /// </summary>
+        [PublicAPI]
+        public static bool HasInstance => _instance != null;
 
         #endregion
 
@@ -226,6 +245,8 @@ namespace VRC.Udon
         
         #endregion
 
+        private bool _setupComplete = false;
+
         private UdonTimeSource _udonTimeSource;
         private IUdonSecurityBlacklist<UnityEngine.Object> _blacklist;
         private IUdonClientInterface _udonClientInterface;
@@ -235,7 +256,7 @@ namespace VRC.Udon
 
         #if !VRC_CLIENT
         [RuntimeInitializeOnLoadMethod]
-        private static void Initialize()
+        internal static void Initialize()
         {
             UdonManager udonManager = Instance;
             List<UdonBehaviour> udonBehavioursWorkingList = new List<UdonBehaviour>();
@@ -354,52 +375,7 @@ namespace VRC.Udon
 
         public void Awake()
         {
-            if(_instance == null)
-            {
-                _instance = this;
-            }
-
-            if(Instance != this)
-            {
-                if(Application.isPlaying)
-                {
-                    Destroy(this);
-                }
-                else
-                {
-                    DestroyImmediate(this);
-                }
-
-                return;
-            }
-
-            _udonTimeSource = new UdonTimeSource();
-            _blacklist = new UnityEngineObjectSecurityBlacklist();
-            _udonClientInterface = new UdonClientInterface(null,null,_blacklist);
-            
-            DebugLogging = Application.isEditor;
-            
-            _udonEventScheduler = new UdonEventScheduler(_udonTimeSource);
-            _udonRunProgramDepth = new ThreadLocal<int>();
-            _postLateUpdater = gameObject.AddComponent<PostLateUpdater>();
-            _postLateUpdater.udonManager = this;
-            _udonEventScheduler.OnEventScheduled += HandleUdonEventScheduled;
-            if(!Application.isPlaying)
-            {
-                // ReSharper disable once RedundantJumpStatement
-                return;
-            }
-
-            #if !VRC_CLIENT
-            PrimitiveType[] primitiveTypes = (PrimitiveType[])Enum.GetValues(typeof(PrimitiveType));
-            foreach(PrimitiveType primitiveType in primitiveTypes)
-            {
-                GameObject go = GameObject.CreatePrimitive(primitiveType);
-                Mesh primitiveMesh = go.GetComponent<MeshFilter>().sharedMesh;
-                Destroy(go);
-                Blacklist(primitiveMesh);
-            }
-            #endif
+            Setup();
         }
 
 #if !VRC_CLIENT
@@ -567,6 +543,74 @@ namespace VRC.Udon
         
         private void OnDestroy()
         {
+            Dispose();
+        }
+        #endregion
+
+        #region Lifecycle
+
+        private void Setup()
+        {
+            if (_setupComplete)
+            {
+                return;
+            }
+
+            if(_instance == null)
+            {
+                _instance = this;
+            }
+
+            if(Instance != this)
+            {
+                if(Application.isPlaying)
+                {
+                    Destroy(this);
+                }
+                else
+                {
+                    DestroyImmediate(this);
+                }
+
+                return;
+            }
+
+            _udonTimeSource = new UdonTimeSource();
+            _blacklist = new UnityEngineObjectSecurityBlacklist();
+            _udonClientInterface = new UdonClientInterface(null,null,_blacklist);
+            
+            DebugLogging = Application.isEditor;
+            
+            _udonEventScheduler = new UdonEventScheduler(_udonTimeSource);
+            _udonRunProgramDepth = new ThreadLocal<int>();
+            if (!gameObject.TryGetComponent(out _postLateUpdater))
+            {
+                _postLateUpdater = gameObject.AddComponent<PostLateUpdater>();
+            }
+            _postLateUpdater.udonManager = this;
+            _udonEventScheduler.OnEventScheduled += HandleUdonEventScheduled;
+            if(!Application.isPlaying)
+            {
+                // ReSharper disable once RedundantJumpStatement
+                return;
+            }
+
+            #if !VRC_CLIENT
+            PrimitiveType[] primitiveTypes = (PrimitiveType[])Enum.GetValues(typeof(PrimitiveType));
+            foreach(PrimitiveType primitiveType in primitiveTypes)
+            {
+                GameObject go = GameObject.CreatePrimitive(primitiveType);
+                Mesh primitiveMesh = go.GetComponent<MeshFilter>().sharedMesh;
+                Blacklist(primitiveMesh);
+                DestroyImmediate(go);
+            }
+            #endif
+
+            _setupComplete = true;
+        }
+
+        public void Dispose()
+        {
             if (_udonEventScheduler != null)
             {
                 _udonEventScheduler.OnEventScheduled -= HandleUdonEventScheduled;
@@ -574,7 +618,15 @@ namespace VRC.Udon
 
             _udonRunProgramDepth?.Dispose();
             _udonRunProgramDepth = null;
+
+            if (_instance == this)
+            {
+                _instance = null;
+            }
+
+            _setupComplete = false;
         }
+        
         #endregion
 
         #region Input Methods

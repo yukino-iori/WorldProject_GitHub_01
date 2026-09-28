@@ -5,6 +5,7 @@ using System.Linq;
 using System.Reflection;
 using System.Security.Cryptography;
 using System.Text;
+using UdonSharp.Compiler;
 using UdonSharp.Compiler.Udon;
 using UnityEditor;
 using UnityEngine;
@@ -451,22 +452,84 @@ namespace UdonSharp
             return false;
         }
 
-        internal static string[] GetProjectDefines(bool editorBuild)
+        internal static string[] GetProjectDefines(IEnumerable<string> defineList, bool editorBuild, BuildTarget buildTarget)
         {
             List<string> defines = new List<string>();
 
-            foreach (string define in UnityEditor.EditorUserBuildSettings.activeScriptCompilationDefines)
+            foreach (string define in defineList)
             {
                 if (!editorBuild)
                     if (define.StartsWith("UNITY_EDITOR"))
                         continue;
 
-                defines.Add(define);
+                if (FilterPerPlatformDefines(define, buildTarget, out var replacement))
+                {
+                    defines.Add(define);
+                }
+                else if (replacement != null)
+                {
+                    defines.Add(replacement);
+                }
             }
 
             defines.Add("COMPILER_UDONSHARP");
 
             return defines.ToArray();
+        }
+
+        private static bool FilterPerPlatformDefines(string define, BuildTarget buildTarget, out string replacement)
+        {
+            replacement = null;
+            switch (define)
+            {
+                case "UNITY_STANDALONE":
+                {
+                    switch (buildTarget)
+                    {
+                        case BuildTarget.StandaloneWindows64:
+                            return true;
+                        case BuildTarget.Android:
+                            replacement = "UNITY_ANDROID";
+                            return false;
+                        case BuildTarget.iOS:
+                            replacement = "UNITY_IOS";
+                            return false;
+                    }
+                    break;
+                }
+                case "UNITY_ANDROID":
+                {
+                    switch (buildTarget)
+                    {
+                        case BuildTarget.StandaloneWindows64:
+                            replacement = "UNITY_STANDALONE";
+                            return false;
+                        case BuildTarget.Android:
+                            return true;
+                        case BuildTarget.iOS:
+                            replacement = "UNITY_IOS";
+                            return false;
+                    }
+                    break;
+                }
+                case "UNITY_IOS":
+                {
+                    switch (buildTarget)
+                    {
+                        case BuildTarget.StandaloneWindows64:
+                            replacement = "UNITY_STANDALONE";
+                            return false;
+                        case BuildTarget.Android:
+                            replacement = "UNITY_ANDROID";
+                            return false;
+                        case BuildTarget.iOS:
+                            return true;
+                    }
+                    break;
+                }
+            }
+            
+            return true;
         }
 
         internal static void ShowEditorNotification(string notificationString)
@@ -560,6 +623,11 @@ namespace UdonSharp
                         AppDomain.CurrentDomain.AssemblyLoad += (AssemblyLoadEventHandler)del;
                 }
             }
+        }
+
+        internal static void ResetAssemblyCaches()
+        {
+            CompilationContext.ResetAssemblyCaches();
         }
     }
 }

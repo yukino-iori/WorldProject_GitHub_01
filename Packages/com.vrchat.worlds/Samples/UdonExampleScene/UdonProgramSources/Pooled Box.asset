@@ -12,7 +12,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 4f11136daadff0b44ac2278a314682ab, type: 3}
   m_Name: Pooled Box
   m_EditorClassIdentifier: 
-  serializedUdonProgramAsset: {fileID: 11400000, guid: 6beefcecc979d6e47b6ee83ea4f319d8, type: 2}
+  serializedUdonProgramAsset: {fileID: 11400000, guid: 6beefcecc979d6e47b6ee83ea4f319d8,
+    type: 2}
   udonAssembly: ".data_start\r\n\r\n    .export pool\r\n    \r\n    __Boolean_0:
     %SystemBoolean, null\r\n    __obj_0: %UnityEngineGameObject, this\r\n    __instance_0:
     %VRCSDK3ComponentsVRCObjectPool, null\r\n    __obj_1: %UnityEngineGameObject,
@@ -308,5 +309,8 @@ MonoBehaviour:
     uid: b05690c8-17f8-4729-ba24-fabdc8b52077
     jsonData: '{"uid":"b05690c8-17f8-4729-ba24-fabdc8b52077","layout":{"serializedVersion":"2","x":1080.0,"y":-330.0,"width":767.0,"height":292.0},"containedElements":["0d7d0b7f-8b65-4331-8f23-d836cc8787cc","3aebf48b-1538-4d51-a41d-c9aac4c034f4","934e8ba8-3363-4668-bfa2-b7b6fa78d739","13a167b5-c2dc-48a2-b1ad-1da7eac402c6","259f0580-8fd1-4655-810e-0c706831974e"],"title":"Get
       ObjectSync component on this GameObject","layer":0,"elementTypeColor":{"r":0.0,"g":0.0,"b":0.0,"a":0.0}}'
+  viewTransform:
+    position: {x: -725.1483, y: 250.7201}
+    scale: 1
   version: 1.0.0
   showAssembly: 0

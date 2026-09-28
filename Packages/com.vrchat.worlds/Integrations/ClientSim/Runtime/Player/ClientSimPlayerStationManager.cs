@@ -51,7 +51,7 @@ namespace VRC.SDK3.ClientSim
 
         public void Dispose()
         {
-            _eventDispatcher.Unsubscribe<ClientSimOnPlayerTeleportedEvent>(OnPlayerTeleported);
+            _eventDispatcher?.Unsubscribe<ClientSimOnPlayerTeleportedEvent>(OnPlayerTeleported);
         }
 
         private void Update()

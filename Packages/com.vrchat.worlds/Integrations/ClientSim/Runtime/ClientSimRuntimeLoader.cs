@@ -21,7 +21,7 @@ namespace VRC.SDK3.ClientSim
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.BeforeSceneLoad)]
         private static void OnBeforeSceneLoad()
         {
-            StartClientSim(GetSettings(), GetEventDispatcher());
+            StartClientSim();
         }
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
@@ -87,6 +87,11 @@ namespace VRC.SDK3.ClientSim
                 Application.isPlaying;
         }
 
+        public static void StartClientSim()
+        {
+            StartClientSim(GetSettings(), GetEventDispatcher());
+        }
+
         // Start client sim with the given settings.
         // Optional event dispatcher can be passed in to listen to startup events. Mainly used in tests.
         public static void StartClientSim(
@@ -97,9 +102,6 @@ namespace VRC.SDK3.ClientSim
             {
                 return;
             }
-            
-            // Delete all editor only objects before creating ClientSim.
-            DestroyEditorOnly(settings);
 
             ClientSimMain.CreateInstance(settings, eventDispatcher);
 
@@ -121,6 +123,11 @@ namespace VRC.SDK3.ClientSim
             {
                 CreateClientSimInstance();
             }*/
+        }
+
+        public static void StopClientSim()
+        {
+            ClientSimMain.RemoveInstance();
         }
 
         private static void DestroyEditorOnly(ClientSimSettings settings)

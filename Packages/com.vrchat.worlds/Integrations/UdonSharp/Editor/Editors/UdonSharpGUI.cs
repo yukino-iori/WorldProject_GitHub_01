@@ -438,21 +438,14 @@ namespace UdonSharpEditor
             if (GUILayout.Button("Create Script"))
             {
                 string thisPath = AssetDatabase.GetAssetPath(programAsset);
-                string fileName = Path.GetFileNameWithoutExtension(thisPath).Replace(" Udon C# Program Asset", "").Replace(" ", "").Replace("#", "Sharp");
-                string chosenFilePath = EditorUtility.SaveFilePanel("Save UdonSharp File", Path.GetDirectoryName(thisPath), fileName, "cs");
+                string startDirectory = Path.GetDirectoryName(thisPath);
 
-                if (chosenFilePath.Length > 0)
+                // Create a script with no automatic asset as we're about to assign our existing one below.
+                string scriptFilePath = UdonSharpBehaviourEditor.CreateUSharpScript(startDirectory, false);
+
+                if (!string.IsNullOrEmpty(scriptFilePath))
                 {
-                    chosenFilePath = UdonSharpSettings.SanitizeScriptFilePath(chosenFilePath);
-
-                    string fileContents = UdonSharpSettings.GetProgramTemplateString(Path.GetFileNameWithoutExtension(chosenFilePath));
-
-                    File.WriteAllText(chosenFilePath, fileContents, System.Text.Encoding.UTF8);
-
-                    AssetDatabase.ImportAsset(chosenFilePath, ImportAssetOptions.ForceSynchronousImport);
-                    AssetDatabase.Refresh();
-
-                    programAsset.sourceCsScript = AssetDatabase.LoadAssetAtPath<MonoScript>(chosenFilePath);
+                    programAsset.sourceCsScript = AssetDatabase.LoadAssetAtPath<MonoScript>(scriptFilePath);
 
                     return true;
                 }

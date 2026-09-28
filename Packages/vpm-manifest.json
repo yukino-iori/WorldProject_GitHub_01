@@ -5,17 +5,20 @@
     },
     "net.ureishi.qvpen": {
       "version": "3.3.15"
+    },
+    "jp.lilxyzw.liltoon": {
+      "version": "2.3.4"
     }
   },
   "locked": {
     "com.vrchat.worlds": {
-      "version": "3.10.4",
+      "version": "3.10.5",
       "dependencies": {
-        "com.vrchat.base": "3.10.4"
+        "com.vrchat.base": "3.10.5"
       }
     },
     "com.vrchat.base": {
-      "version": "3.10.4",
+      "version": "3.10.5",
       "dependencies": {}
     },
     "net.ureishi.qvpen": {
@@ -23,6 +26,10 @@
       "dependencies": {
         "com.vrchat.worlds": "^3.5.0"
       }
+    },
+    "jp.lilxyzw.liltoon": {
+      "version": "2.3.4",
+      "dependencies": {}
     }
   }
 }

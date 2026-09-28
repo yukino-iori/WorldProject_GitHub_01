@@ -30,6 +30,7 @@ using VRC.Udon.Common.Interfaces;
 using Object = UnityEngine.Object;
 using VRC.SDK3A.Editor.Elements;
 using UnityEngine.Rendering.PostProcessing;
+using VRC.Core.Pool;
 using VRC.Dynamics;
 using VRC.SDK3.Editor.Exceptions;
 using Button = UnityEngine.UIElements.Button;
@@ -429,6 +430,77 @@ namespace VRC.SDK3.Editor
         private void OnGUISceneCheck(VRC_SceneDescriptor scene)
         {
             CheckUploadChanges(scene);
+
+            List<PipelineManager> pipelineManagers = GatherComponentsOfTypeInScene<PipelineManager>();
+            if (pipelineManagers.Count > 1)
+            {
+                _builder.OnGUIError(scene, "There are multiple pipeline manager components in the scene. There must be exactly one on the same game object as the scene descriptor.",
+                    () =>
+                    {
+                        using (ListPool.Get(out List<Object> pipelineManagerObjects))
+                        {
+                            foreach (PipelineManager pm in pipelineManagers)
+                            {
+                                pipelineManagerObjects.Add(pm.gameObject);
+                            }
+
+                            Selection.objects = pipelineManagerObjects.ToArray();
+                        }
+                    },
+                    () =>
+                    {
+                        Undo.SetCurrentGroupName("Remove Excess Pipeline Managers");
+                        int undoGroup = Undo.GetCurrentGroup();
+                        try
+                        {
+                            // First, find the manager to preserve - the first one on the scene root that has an assigned ID.
+                            PipelineManager preservedManager = null;
+                            PipelineManager[] rootPipelineManagers = _scenes[0].gameObject.GetComponents<PipelineManager>();
+                            if (rootPipelineManagers.Length > 0)
+                            {
+                                for (int i = 0; i < rootPipelineManagers.Length; i++)
+                                {
+                                    if (!string.IsNullOrEmpty(rootPipelineManagers[i].blueprintId))
+                                    {
+                                        preservedManager = rootPipelineManagers[i];
+                                        break;
+                                    }
+                                }
+
+                                if (preservedManager == null)
+                                {
+                                    // They're all empty...just use the first one.
+                                    preservedManager = rootPipelineManagers[0];
+                                }
+                            }
+                            
+                            // Now remove all pipeline managers except the preserved one, if any.
+                            for (int i = 0; i < pipelineManagers.Count; i++)
+                            {
+                                PipelineManager pm = pipelineManagers[i];
+                                if (pm == preservedManager)
+                                {
+                                    continue;
+                                }
+                                Undo.DestroyObjectImmediate(pm);
+                            }
+                        }
+                        finally
+                        {
+                            Undo.CollapseUndoOperations(undoGroup);
+                        }
+                    });
+            }
+            else if (pipelineManagers.Count == 0)
+            {
+                // Very unlikely this could happen but let's cover it anyway.
+                _builder.OnGUIError(scene, "This scene has no pipeline manager component. There must be exactly one on the same game object as the scene descriptor.",
+                    null,
+                    delegate
+                    {
+                        Undo.AddComponent<PipelineManager>(_scenes[0].gameObject);
+                    });
+            }
 
             List<VRC_EventHandler> sdkBaseEventHandlers = GatherComponentsOfTypeInScene<VRC_EventHandler>();
 
@@ -863,7 +935,7 @@ namespace VRC.SDK3.Editor
                     AssetDatabase.Refresh();
                 });
         }
-        
+
         private void VerifySpawnPlacement(VRC_SceneDescriptor scene)
         {
             bool IsSpawnInPositionLimits(Vector3 position)
@@ -1576,8 +1648,8 @@ namespace VRC.SDK3.Editor
             // Do not clear blueprint IDs during a build or upload
             if (_buildState != SdkBuildState.Building && _uploadState != SdkUploadState.Uploading)
             {
-                Core.Logger.LogError("Loaded data for an world we do not own, clearing blueprint ID");
-                Undo.RecordObject(pm, "Cleared the blueprint ID we do not own");
+                Core.Logger.LogWarning("Loaded data for a world we do not own, clearing blueprint ID");
+                Undo.RecordObject(pm, "Clear Unowned Blueprint ID");
                 pm.blueprintId = "";
                 _lastBlueprintId = "";
             }
@@ -2214,7 +2286,29 @@ namespace VRC.SDK3.Editor
 
         private async void OnBuildAndReloadAction()
         {
-            await Build();
+            VRC_SdkBuilder.ActiveBuildType = VRC_SdkBuilder.BuildType.Test;
+
+            void BuildSuccess(object sender, string path)
+            {
+                BuildStageSuccess(sender, path);
+
+                _builderProgress.HideProgress();
+                UiEnabled = true;
+                _thumbnail.Loading = false;
+                RevertThumbnail();
+
+                ShowBuildSuccessNotification();
+            }
+
+            SubscribePanelToBuildCallbacks(buildSuccess: BuildSuccess);
+            try
+            {
+                await Build();
+            }
+            finally
+            {
+                UnsubscribePanelFromBuildCallbacks(buildSuccess: BuildSuccess);
+            }
         }
         
         private void ReloadLastBuildSetup(VisualElement root)
@@ -2612,16 +2706,22 @@ namespace VRC.SDK3.Editor
             OnSdkBuildStateChange?.Invoke(this, _buildState);
             
             await Task.Delay(100);
-            
+
             try
             {
+                bool success;
                 if (!runAfterBuild)
                 {
-                    VRC_SdkBuilder.RunExportSceneResource();
+                    success = VRC_SdkBuilder.RunExportSceneResource();
                 }
                 else
                 {
-                    VRC_SdkBuilder.RunExportSceneResourceAndRun();
+                    success = VRC_SdkBuilder.RunExportSceneResourceAndRunWithResult();
+                }
+
+                if (!success)
+                {
+                    throw await HandleBuildError(new BuilderException("Scene export failed. Check console output for details."));
                 }
             }
             catch (WorldAssetExportException e)
@@ -2753,6 +2853,10 @@ namespace VRC.SDK3.Editor
             if (pms.Length == 0)
             {
                 throw await HandleUploadError(new UploadException("The scene does not have a PipelineManager component present, make sure to add a SceneDescriptor before building and uploading"));
+            }
+            else if (pms.Length > 1)
+            {
+                throw await HandleUploadError(new UploadException("The scene contains multiple PipelineManager components. There must be exactly one."));
             }
 
             var pM = pms[0];
@@ -3258,6 +3362,10 @@ namespace VRC.SDK3.Editor
             {
                 throw await HandleUploadError(new UploadException("The scene does not have a PipelineManager component present, make sure to add a SceneDescriptor before building and uploading"));
             }
+            else if (pms.Length > 1)
+            {
+                throw await HandleUploadError(new UploadException("The scene contains multiple PipelineManager components. There must be exactly one."));
+            }
             
             if (string.IsNullOrWhiteSpace(pms[0].blueprintId))
             {
@@ -3333,6 +3441,10 @@ namespace VRC.SDK3.Editor
             if (pms.Length == 0)
             {
                 throw await HandleUploadError(new UploadException("The scene does not have a PipelineManager component present, make sure to add a SceneDescriptor before building and uploading"));
+            }
+            else if (pms.Length > 1)
+            {
+                throw await HandleUploadError(new UploadException("The scene contains multiple PipelineManager components. There must be exactly one."));
             }
             
             if (string.IsNullOrWhiteSpace(pms[0].blueprintId))

@@ -14,6 +14,7 @@ using UnityEditor;
 
 namespace VRC.SDK3.ClientSim
 {
+    [AddComponentMenu("")]
     public class ClientSimNetworkIdHolder : ClientSimBehaviour, IClientSimNetworkSerializer
     {
         internal ClientSimNetworkingView _networkId;

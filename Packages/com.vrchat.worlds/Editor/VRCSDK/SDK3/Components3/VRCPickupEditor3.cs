@@ -28,6 +28,7 @@ namespace VRC.SDK3.Editor
         private SerializedProperty propUseText;
         private SerializedProperty propThrowVelocityBoostMinSpeed;
         private SerializedProperty propThrowVelocityBoostScale;
+        private SerializedProperty propOutlineRenderers;
         private SerializedProperty propPickupable;
         private SerializedProperty propProximity;
 
@@ -42,6 +43,7 @@ namespace VRC.SDK3.Editor
         private PropertyField fieldUseText;
         private PropertyField fieldThrowVelocityBoostMinSpeed;
         private PropertyField fieldThrowVelocityBoostScale;
+        private PropertyField fieldOutlineRenderers;
         private PropertyField fieldPickupable;
         private PropertyField fieldProximity;
         
@@ -62,6 +64,7 @@ namespace VRC.SDK3.Editor
             propUseText = serializedObject.FindProperty(nameof(VRCPickup.UseText));
             propThrowVelocityBoostMinSpeed = serializedObject.FindProperty(nameof(VRCPickup.ThrowVelocityBoostMinSpeed));
             propThrowVelocityBoostScale = serializedObject.FindProperty(nameof(VRCPickup.ThrowVelocityBoostScale));
+            propOutlineRenderers = serializedObject.FindProperty(nameof(VRCPickup.OutlineRenderers));
             propPickupable = serializedObject.FindProperty(nameof(VRCPickup.pickupable));
             propProximity = serializedObject.FindProperty(nameof(VRCPickup.proximity));
         }
@@ -71,11 +74,21 @@ namespace VRC.SDK3.Editor
         public override void BuildInspectorGUI()
         {
             base.BuildInspectorGUI();
-            
+            var pickup = (VRCPickup)target;
+
             // Add version system
             var migrator = new VRCPickupVersionMigrator(propAutoHold, propOrientation, propInteractionText, OnVersionChanged);
             versionUI = AddVersionSystem(propVersion, migrator, 
                 "https://creators.vrchat.com/worlds/components/vrc_pickup#versions");
+
+            // Guide new creators towards adding a collider
+            // != null is specific to the Unity lifetime check, as this may be invoked with a destroyed object when exiting play mode...
+            if (pickup != null && !pickup.TryGetComponent<Collider>(out _))
+            {
+                // Prompt to add since Collider is abstract so we can't use RequireComponent
+                Root.Add(new HelpBox("This pickup has no collider on it, so it won't be usable. You can add a collider using the Add Component button below.", HelpBoxMessageType.Warning));
+            }
+
             // Create AutoHold enum field (shown in V1.0, hidden in V1.1+ when toggle is used)
             fieldAutoHold = AddField(propAutoHold);
             fieldAutoHold.RegisterValueChangeCallback(AutoHoldCallback);
@@ -97,9 +110,9 @@ namespace VRC.SDK3.Editor
             fieldMomentumTransferMethod = AddField(propMomentumTransferMethod);
             fieldThrowVelocityBoostMinSpeed = AddField(propThrowVelocityBoostMinSpeed);
             fieldThrowVelocityBoostScale = AddField(propThrowVelocityBoostScale);
+            fieldOutlineRenderers = AddField(propOutlineRenderers);
             
             // Now that all fields are created, we can update their visibility based on version
-            var pickup = target as VRCPickup;
             SetupAutoHoldField(pickup.version);
             RefreshAllFieldVisibility(pickup.version);
         }
@@ -107,6 +120,20 @@ namespace VRC.SDK3.Editor
         // Creates the toggle field for modern AutoHold UI (V1.1+)
         private void SetupAutoHoldField(VRCPickup.Version version)
         {
+            if (IsModernVersion(version))
+            {
+                var autoHold = (VRC_Pickup.AutoHoldMode)propAutoHold.enumValueIndex;
+
+                // Kick out legacy auto-hold values for this version.
+                if (autoHold == VRC_Pickup.AutoHoldMode.AutoDetect || autoHold == VRC_Pickup.AutoHoldMode.Sometimes)
+                {
+                    var orientation = (VRC_Pickup.PickupOrientation)propOrientation.enumValueIndex;
+                    bool willBeAutoHold = VRC_Pickup.IsGlobalAutoHoldPickup(autoHold, orientation);
+                    propAutoHold.enumValueIndex = willBeAutoHold ? (int)VRC_Pickup.AutoHoldMode.Yes : (int)VRC_Pickup.AutoHoldMode.No;
+                    serializedObject.ApplyModifiedProperties();
+                }
+            }
+
             var container = fieldAutoHold.parent;
             
             if (!fieldAutoHold.ClassListContains("auto-hold-enum-field"))
@@ -128,7 +155,7 @@ namespace VRC.SDK3.Editor
                         (int)VRC_Pickup.AutoHoldMode.Yes :
                         (int)VRC_Pickup.AutoHoldMode.No;
                     serializedObject.ApplyModifiedProperties();
-                    AutoHoldChanged();
+                    RefreshUseTextVisibility();
                 });
         
                 container.Insert(container.IndexOf(fieldAutoHold) + 1, toggleField);
@@ -177,11 +204,10 @@ namespace VRC.SDK3.Editor
 
         private void AutoHoldCallback(SerializedPropertyChangeEvent evt)
         {
-            AutoHoldChanged();
+            RefreshUseTextVisibility();
         }
         
-        // Updates UseText field visibility when AutoHold setting changes
-        private void AutoHoldChanged()
+        private void RefreshUseTextVisibility()
         {
             bool canDisplayUseText = propAutoHold.enumValueIndex
                 is (int)VRC_Pickup.AutoHoldMode.Yes
@@ -229,7 +255,7 @@ namespace VRC.SDK3.Editor
             versionUI?.RefreshUpgradeInfo();
             UpdateAutoHoldFieldVisibility(version);
             OrientationChanged();
-            AutoHoldChanged();
+            RefreshUseTextVisibility();
         }
         
         // Called when version changes to update UI elements

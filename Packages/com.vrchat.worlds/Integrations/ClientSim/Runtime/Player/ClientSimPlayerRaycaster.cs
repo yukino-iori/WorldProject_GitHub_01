@@ -111,8 +111,8 @@ namespace VRC.SDK3.ClientSim
         public void Dispose()
         {
             _input?.UnsubscribeUse(UseInput);
-            _eventDispatcher.Unsubscribe<ClientSimOnPlayerMovedEvent>(OnPlayerMoved);
-            _eventDispatcher.Unsubscribe<ClientSimPlayerDeathStatusChangedEvent>(CombatStatusEvent);
+            _eventDispatcher?.Unsubscribe<ClientSimOnPlayerMovedEvent>(OnPlayerMoved);
+            _eventDispatcher?.Unsubscribe<ClientSimPlayerDeathStatusChangedEvent>(CombatStatusEvent);
         }
 
         private void Update()

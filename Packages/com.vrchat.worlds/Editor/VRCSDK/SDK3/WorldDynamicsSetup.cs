@@ -13,19 +13,35 @@ namespace VRC.SDK3.Dynamics
         [InitializeOnLoadMethod]
         private static void EditorInit()
         {
+            DynamicsSetup.EditorInit();
+
             // WARNING: Cannot use #else due to stripping limitations
             DynamicsComponent.DefaultUsage =
 #if !VRC_ENABLE_PROPS
                 DynamicsUsage.World;
 #endif
+
+            if (Application.isPlaying)
+            {
+                // Coming out of a domain reload in play mode. Set up the runtime state again.
+                RuntimeInit(true);
+            }
         }
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.BeforeSceneLoad)]
-        private static void RuntimeInitInitializeEvents()
+        private static void RuntimeInit()
+        {
+            RuntimeInit(false);
+        }
+
+        private static void RuntimeInit(bool invokedFromDomainReload)
         {
             ContactBase.OnInitialize = Contact_OnInitialize;
             VRCPhysBoneBase.OnInitialize = PhysBone_OnInitialize;
             VRCPhysBoneColliderBase.OnPreShapeInitialize += PhysBoneCollider_OnPreShapeInitialize;
+
+            //Shared setup
+            DynamicsSetup.RuntimeInit(invokedFromDomainReload);
         }
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]

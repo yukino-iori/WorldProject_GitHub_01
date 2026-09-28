@@ -109,7 +109,7 @@ public class <TemplateClassName> : UdonSharpBehaviour
             return settings;
         }
 
-        private static string SanitizeName(string name)
+        internal static string SanitizeName(string name)
         {
             return name.Replace(" ", "")
                         .Replace("#", "Sharp")
@@ -123,23 +123,6 @@ public class <TemplateClassName> : UdonSharpBehaviour
                         .Replace("$", "")
                         .Replace("@", "")
                         .Replace("+", "");
-        }
-
-        // Unity does not like having scripts with different names from their classes and will start breaking things weirdly, so enforce it by default. 
-        // If people really want to rename the asset afterwards they can, but there will be a compile warning that they can't get rid of without fixing the names.
-        internal static string SanitizeScriptFilePath(string file)
-        {
-            string fileName = SanitizeName(Path.GetFileNameWithoutExtension(file));
-
-            string filePath = Path.GetDirectoryName(file).Replace('\\', '/');
-
-            string projectRoot = Path.GetDirectoryName( Application.dataPath ).Replace('\\', '/');
-
-            //make sure the path is relative to the project root
-            if (filePath.StartsWith(projectRoot))
-                filePath = filePath.Substring(projectRoot.Length + 1); //add 1 to remove trailing slash
-
-            return $"{filePath}/{fileName}{Path.GetExtension(file)}";
         }
 
         public static string GetProgramTemplateString(string scriptName)

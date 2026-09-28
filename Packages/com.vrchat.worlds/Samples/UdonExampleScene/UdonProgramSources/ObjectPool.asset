@@ -12,7 +12,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 4f11136daadff0b44ac2278a314682ab, type: 3}
   m_Name: ObjectPool
   m_EditorClassIdentifier: 
-  serializedUdonProgramAsset: {fileID: 11400000, guid: be32d8a368369b646ad1d60f104d7790, type: 2}
+  serializedUdonProgramAsset: {fileID: 11400000, guid: be32d8a368369b646ad1d60f104d7790,
+    type: 2}
   udonAssembly: ".data_start\r\n\r\n    .export pool\r\n    .export spawnRate\r\n   
     \r\n    __Boolean_0: %SystemBoolean, null\r\n    __Boolean_1: %SystemBoolean,
     null\r\n    __Boolean_2: %SystemBoolean, null\r\n    __Single_0: %SystemSingle,
@@ -280,5 +281,8 @@ MonoBehaviour:
   - type: 4
     uid: ace03e48-71a1-473b-a1e7-33821ff7642c
     jsonData: '{"visible":true,"layout":{"serializedVersion":"2","x":10.0,"y":20.0,"width":0.0,"height":0.0}}'
+  viewTransform:
+    position: {x: -470.8941, y: 85.42198}
+    scale: 0.7561437
   version: 1.0.0
   showAssembly: 0

@@ -44,7 +44,6 @@ namespace VRC.SDK3.ClientSim
             // Catch Helper not initialized.
             if (_udonBehaviour == null)
             {
-                this.LogWarning($"Destroying uninitialized Helper. Object: {Tools.GetGameObjectPath(gameObject)}");
                 DestroyImmediate(this);
             }
         }

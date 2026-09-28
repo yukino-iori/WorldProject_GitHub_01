@@ -199,20 +199,36 @@ namespace Tests.DataContainers
             CompareTokens(title, inToken, outToken);
         }
 
-        private void CompareTokens(string title, DataToken a, DataToken b)
+        private void CompareTokens(string title, DataToken expected, DataToken actual)
         {
             
-            if (a.TokenType == TokenType.Float)
+            if (expected.TokenType == TokenType.Float)
             {
-                Assert.IsTrue(Mathf.Approximately(a.Float, Convert.ToSingle(b.Double)),  $"{title} Input ({a.Float.ToString("G")}) and output ({b.Double.ToString("G")}) tokens were not the same");
+                Assert.IsTrue(Mathf.Approximately(expected.Float, Convert.ToSingle(actual.Double)),  $"{title} Input ({expected.Float.ToString("G")}) and output ({actual.Double.ToString("G")}) tokens were not the same");
             }
-            else if (a.IsNumber)
+            else if (expected.IsNumber)
             {
-                Assert.IsTrue(Approximately(a.Double, b.Double),  $"{title} Input ({a.Double.ToString("G")}) and output ({b.Number.ToString("G")}) tokens were not the same");
+                Assert.IsTrue(Approximately(expected.Double, actual.Double),  $"{title} Input ({expected.Double.ToString("G")}) and output ({actual.Number.ToString("G")}) tokens were not the same");
+            }
+            else if (expected.TokenType == TokenType.DataDictionary)
+            {
+                Assert.AreEqual(TokenType.DataDictionary, actual.TokenType, $"{title} Expected DataDictionary but got {actual.TokenType}");
+                DataDictionary expectedDict = expected.DataDictionary;
+                DataDictionary actualDict = actual.DataDictionary;
+                Assert.AreEqual(expectedDict.Count, actualDict.Count, $"{title} Dictionary count mismatch: expected {expectedDict.Count}, got {actualDict.Count}");
+                DataList expectedKeys = expectedDict.GetKeys();
+                for (int i = 0; i < expectedKeys.Count; i++)
+                {
+                    DataToken key = expectedKeys[i];
+                    Assert.IsTrue(actualDict.ContainsKey(key), $"{title} Missing key: {key}");
+                    Assert.IsTrue(expectedDict.TryGetValue(key, out DataToken expectedValue), $"{title} Failed to get expected value for key {key}");
+                    Assert.IsTrue(actualDict.TryGetValue(key, out DataToken actualValue), $"{title} Failed to get actual value for key {key}");
+                    CompareTokens($"{title}[{key}]", expectedValue, actualValue);
+                }
             }
             else
             {
-                Assert.AreEqual(expected: a, b,  $"{title} Input ({a}) and output ({b}) tokens were not the same");
+                Assert.AreEqual(expected: expected, actual,  $"{title} Input ({expected}) and output ({actual}) tokens were not the same");
             }
         }
         private bool Approximately(double a, double b)
@@ -267,6 +283,11 @@ namespace Tests.DataContainers
             ValidateJsonList("[1]",  new DataToken[]{1});
             ValidateJsonList("[1, 2, 3]",  new DataToken[]{1, 2, 3});
             ValidateJsonList("[1, 2, 3,]", new DataToken[]{1, 2, 3});
+
+            ValidateJsonList("[\"[\"]",  new DataToken[]{"["});
+            ValidateJsonList("[\"{\"]",  new DataToken[]{"{"});
+            ValidateJsonList("[\"]\"]",  new DataToken[]{"]"});
+            ValidateJsonList("[\"}\"]",  new DataToken[]{"}"});
         }
         
         [Test]
@@ -275,6 +296,62 @@ namespace Tests.DataContainers
             ValidateJsonObject("{}", new DataToken[]{}, new DataToken[] {});
             ValidateJsonObject("{\"key\":\"value\"}", new DataToken[]{"key"}, new DataToken[] {"value"});
             ValidateJsonObject("{\"key\": \"value\",}", new DataToken[] {"key"}, new DataToken[] {"value"});
+
+            ValidateJsonObject("{\"[\":\"value\"}",  new DataToken[]{"["}, new DataToken[] {"value"});
+            ValidateJsonObject("{\"{\":\"value\"}",  new DataToken[]{"{"}, new DataToken[] {"value"});
+            ValidateJsonObject("{\"]\":\"value\"}",  new DataToken[]{"]"}, new DataToken[] {"value"});
+            ValidateJsonObject("{\"}\":\"value\"}",  new DataToken[]{"}"}, new DataToken[] {"value"});
+
+            ValidateJsonObject("{\"key\": \"value{}\"}", new DataToken[]{"key"}, new DataToken[] {"value{}"});
+            ValidateJsonObject("{\"key\": \"{value}\"}", new DataToken[]{"key"}, new DataToken[] {"{value}"});
+            ValidateJsonObject("{\"key\": \"{}value\"}", new DataToken[]{"key"}, new DataToken[] {"{}value"});
+            ValidateJsonObject("{\"key\": \"{}\"}", new DataToken[]{"key"}, new DataToken[] {"{}"});
+            ValidateJsonObject("{\"key\": \"}{\"}", new DataToken[]{"key"}, new DataToken[] {"}{"});
+            ValidateJsonObject("{\"key\": \"[]\"}", new DataToken[]{"key"}, new DataToken[] {"[]"});
+            ValidateJsonObject("{\"key\": \"][\"}", new DataToken[]{"key"}, new DataToken[] {"]["});
+
+            ValidateJsonObject("{\"key\": \"}\"}", new DataToken[]{"key"}, new DataToken[] {"}"});
+            ValidateJsonObject("{\"key\": \"{\"}", new DataToken[]{"key"}, new DataToken[] {"{"});
+            ValidateJsonObject("{\"key\": \"]\"}", new DataToken[]{"key"}, new DataToken[] {"]"});
+            ValidateJsonObject("{\"key\": \"[\"}", new DataToken[]{"key"}, new DataToken[] {"["});
+        }
+
+        [Test]
+        public void TestGoodJsonObjectsNested()
+        {
+            JsonDictionary jsonDictionary = new JsonDictionary("");
+
+            // {"a": {"b": ""}}
+            jsonDictionary["b"] = "";
+            ValidateJsonObject("{\"a\": {\"b\": \"\"}}", new DataToken[]{"a"}, new DataToken[] {jsonDictionary});
+            // {"a": {"b": "{"}}
+            jsonDictionary["b"] = "{";
+            ValidateJsonObject("{\"a\": {\"b\": \"{\"}}", new DataToken[]{"a"}, new DataToken[] {jsonDictionary});
+            // {"a": {"b": "}"}}
+            jsonDictionary["b"] = "}";
+            ValidateJsonObject("{\"a\": {\"b\": \"}\"}}", new DataToken[]{"a"}, new DataToken[] {jsonDictionary});
+            // {"a": {"b": "["}}
+            jsonDictionary["b"] = "[";
+            ValidateJsonObject("{\"a\": {\"b\": \"[\"}}", new DataToken[]{"a"}, new DataToken[] {jsonDictionary});
+            // {"a": {"b": "]"}}
+            jsonDictionary["b"] = "]";
+            ValidateJsonObject("{\"a\": {\"b\": \"]\"}}", new DataToken[]{"a"}, new DataToken[] {jsonDictionary});
+            
+            JsonDictionary innerJsonDictionary = new JsonDictionary("");
+            jsonDictionary["b"] = innerJsonDictionary;
+
+            // {"a": {"b": {"c": "{"}}}
+            innerJsonDictionary["c"] = "{";
+            ValidateJsonObject("{\"a\": {\"b\": {\"c\": \"{\"}}}", new DataToken[]{"a"}, new DataToken[] {jsonDictionary});
+            // {"a": {"b": {"c": "}"}}}
+            innerJsonDictionary["c"] = "}";
+            ValidateJsonObject("{\"a\": {\"b\": {\"c\": \"}\"}}}", new DataToken[]{"a"}, new DataToken[] {jsonDictionary});
+            // {"a": {"b": {"c": "["}}}
+            innerJsonDictionary["c"] = "[";
+            ValidateJsonObject("{\"a\": {\"b\": {\"c\": \"[\"}}}", new DataToken[]{"a"}, new DataToken[] {jsonDictionary});
+            // {"a": {"b": {"c": "]"}}}
+            innerJsonDictionary["c"] = "]";
+            ValidateJsonObject("{\"a\": {\"b\": {\"c\": \"]\"}}}", new DataToken[]{"a"}, new DataToken[] {jsonDictionary});
         }
 
         [Test]
@@ -313,7 +390,7 @@ namespace Tests.DataContainers
             {
                 CompareTokens($"comparing key {i}", expectedKeys[i], keys[i]);
                 Assert.IsTrue(dictionary.DataDictionary.TryGetValue(keys[i], out DataToken value), $"Attempting to get value {keys[i]} from {input}, hit {value.Error}");
-                CompareTokens($"Comparing token {keys[i]} in {input}", value, expectedValues[i]);
+                CompareTokens($"Comparing token {keys[i]} in {input}", expectedValues[i], value);
             }
         }
 
@@ -363,6 +440,25 @@ namespace Tests.DataContainers
         [TestCase("[\"unfinished string]", DataError.UnableToParse)]
         [TestCase("[\"unfinished array\"", DataError.UnableToParse)]
         [TestCase("[\"bad brackets\"[", DataError.UnableToParse)]
+        // ending objects like arrays/arrays like objects:
+        [TestCase("{]", DataError.UnableToParse)]
+        [TestCase("[}", DataError.UnableToParse)]
+        [TestCase("[{]", DataError.UnableToParse)]
+        [TestCase("{[}", DataError.UnableToParse)]
+        [TestCase("[}]", DataError.UnableToParse)]
+        [TestCase("{]}", DataError.UnableToParse)]
+        [TestCase("[[}]", DataError.UnableToParse)]
+        [TestCase("[{]]", DataError.UnableToParse)]
+        [TestCase("{{]}", DataError.UnableToParse)]
+        [TestCase("{[}}", DataError.UnableToParse)]
+        [TestCase("[{}}", DataError.UnableToParse)]
+        [TestCase("{{}]", DataError.UnableToParse)]
+        [TestCase("[[]}", DataError.UnableToParse)]
+        [TestCase("{[]]", DataError.UnableToParse)]
+        [TestCase("[[{]]", DataError.UnableToParse)]
+        [TestCase("[[}]]", DataError.UnableToParse)]
+        [TestCase("{{[}}", DataError.UnableToParse)]
+        [TestCase("{{]}}", DataError.UnableToParse)]
         public void ShouldFailToDeserialize(string input, DataError? expectedDataError = null)
         {
             Assert.IsFalse(VRCJson.TryDeserializeFromJson(input, out DataToken result), $"Should fail to deserialize {input}");

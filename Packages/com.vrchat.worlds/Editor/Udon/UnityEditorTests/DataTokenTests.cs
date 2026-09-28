@@ -289,5 +289,369 @@ namespace Tests.DataContainers
             Assert.AreEqual(inToken, outToken,  $"{title} Input and output tokens were not the same");
         }
 
+        #region Type Conversion
+
+        [Test]
+        public void TestConvertBoolean()
+        {
+            const bool testBool = true;
+
+            DataToken boolToken = new DataToken(testBool);
+
+            // by definition, booleans can only be treated as booleans, everything else throws
+            Assert.AreEqual(testBool, boolToken.Boolean);
+            Assert.Throws<InvalidOperationException>(() => _ = boolToken.SByte);
+            Assert.Throws<InvalidOperationException>(() => _ = boolToken.Byte);
+            Assert.Throws<InvalidOperationException>(() => _ = boolToken.Short);
+            Assert.Throws<InvalidOperationException>(() => _ = boolToken.UShort);
+            Assert.Throws<InvalidOperationException>(() => _ = boolToken.Int);
+            Assert.Throws<InvalidOperationException>(() => _ = boolToken.UInt);
+            Assert.Throws<InvalidOperationException>(() => _ = boolToken.Long);
+            Assert.Throws<InvalidOperationException>(() => _ = boolToken.ULong);
+            Assert.Throws<InvalidOperationException>(() => _ = boolToken.Float);
+            Assert.Throws<InvalidOperationException>(() => _ = boolToken.Double);
+            Assert.Throws<InvalidOperationException>(() => _ = boolToken.Number);
+
+            // not primitive
+            Assert.Throws<InvalidOperationException>(() => _ = boolToken.String);
+            Assert.Throws<InvalidOperationException>(() => _ = boolToken.DataList);
+            Assert.Throws<InvalidOperationException>(() => _ = boolToken.DataDictionary);
+            Assert.Throws<InvalidOperationException>(() => _ = boolToken.Reference);
+
+            // not error
+            Assert.AreEqual(DataError.None, boolToken.Error);
+        }
+
+        [Test]
+        public void TestConvertSByte()
+        {
+            const sbyte testSByte = -1;
+
+            DataToken sbyteToken = new DataToken(testSByte);
+
+            // narrowing
+            Assert.Throws<InvalidOperationException>(() => _ = sbyteToken.Boolean);
+            Assert.Throws<InvalidOperationException>(() => _ = sbyteToken.Byte);
+            Assert.Throws<InvalidOperationException>(() => _ = sbyteToken.UShort);
+            Assert.Throws<InvalidOperationException>(() => _ = sbyteToken.UInt);
+            Assert.Throws<InvalidOperationException>(() => _ = sbyteToken.ULong);
+
+            // stable or widening
+            Assert.AreEqual(testSByte, sbyteToken.SByte);
+            Assert.AreEqual(testSByte, sbyteToken.Short);
+            Assert.AreEqual(testSByte, sbyteToken.Int);
+            Assert.AreEqual(testSByte, sbyteToken.Long);
+            Assert.AreEqual(testSByte, sbyteToken.Float);
+            Assert.AreEqual(testSByte, sbyteToken.Double);
+            Assert.AreEqual(testSByte, sbyteToken.Number);
+
+            // not primitive
+            Assert.Throws<InvalidOperationException>(() => _ = sbyteToken.String);
+            Assert.Throws<InvalidOperationException>(() => _ = sbyteToken.DataList);
+            Assert.Throws<InvalidOperationException>(() => _ = sbyteToken.DataDictionary);
+            Assert.Throws<InvalidOperationException>(() => _ = sbyteToken.Reference);
+
+            // not error
+            Assert.AreEqual(DataError.None, sbyteToken.Error);
+        }
+
+        [Test]
+        public void TestConvertByte()
+        {
+            const byte testByte = 0;
+
+            DataToken byteToken = new DataToken(testByte);
+
+            // narrowing
+            Assert.Throws<InvalidOperationException>(() => _ = byteToken.Boolean);
+            Assert.Throws<InvalidOperationException>(() => _ = byteToken.SByte);
+
+            // stable or widening
+            Assert.AreEqual(testByte, byteToken.Byte);
+            Assert.AreEqual(testByte, byteToken.Short);
+            Assert.AreEqual(testByte, byteToken.UShort);
+            Assert.AreEqual(testByte, byteToken.Int);
+            Assert.AreEqual(testByte, byteToken.UInt);
+            Assert.AreEqual(testByte, byteToken.Long);
+            Assert.AreEqual(testByte, byteToken.ULong);
+            Assert.AreEqual(testByte, byteToken.Float);
+            Assert.AreEqual(testByte, byteToken.Double);
+            Assert.AreEqual(testByte, byteToken.Number);
+
+            // not primitive
+            Assert.Throws<InvalidOperationException>(() => _ = byteToken.String);
+            Assert.Throws<InvalidOperationException>(() => _ = byteToken.DataList);
+            Assert.Throws<InvalidOperationException>(() => _ = byteToken.DataDictionary);
+            Assert.Throws<InvalidOperationException>(() => _ = byteToken.Reference);
+
+            // not error
+            Assert.AreEqual(DataError.None, byteToken.Error);
+        }
+
+        [Test]
+        public void TestConvertShort()
+        {
+            const short testShort = -1;
+
+            DataToken shortToken = new DataToken(testShort);
+
+            // narrowing
+            Assert.Throws<InvalidOperationException>(() => _ = shortToken.Boolean);
+            Assert.Throws<InvalidOperationException>(() => _ = shortToken.SByte);
+            Assert.Throws<InvalidOperationException>(() => _ = shortToken.Byte);
+            Assert.Throws<InvalidOperationException>(() => _ = shortToken.UShort);
+            Assert.Throws<InvalidOperationException>(() => _ = shortToken.UInt);
+            Assert.Throws<InvalidOperationException>(() => _ = shortToken.ULong);
+
+            // stable or widening
+            Assert.AreEqual(testShort, shortToken.Short);
+            Assert.AreEqual(testShort, shortToken.Int);
+            Assert.AreEqual(testShort, shortToken.Long);
+            Assert.AreEqual(testShort, shortToken.Float);
+            Assert.AreEqual(testShort, shortToken.Double);
+            Assert.AreEqual(testShort, shortToken.Number);
+
+            // not primitive
+            Assert.Throws<InvalidOperationException>(() => _ = shortToken.String);
+            Assert.Throws<InvalidOperationException>(() => _ = shortToken.DataList);
+            Assert.Throws<InvalidOperationException>(() => _ = shortToken.DataDictionary);
+            Assert.Throws<InvalidOperationException>(() => _ = shortToken.Reference);
+
+            // not error
+            Assert.AreEqual(DataError.None, shortToken.Error);
+        }
+
+        [Test]
+        public void TestConvertUShort()
+        {
+            const ushort testUShort = 0;
+
+            DataToken ushortToken = new DataToken(testUShort);
+
+            // narrowing
+            Assert.Throws<InvalidOperationException>(() => _ = ushortToken.Boolean);
+            Assert.Throws<InvalidOperationException>(() => _ = ushortToken.SByte);
+            Assert.Throws<InvalidOperationException>(() => _ = ushortToken.Byte);
+            Assert.Throws<InvalidOperationException>(() => _ = ushortToken.Short);
+
+            // stable or widening
+            Assert.AreEqual(testUShort, ushortToken.UShort);
+            Assert.AreEqual(testUShort, ushortToken.Int);
+            Assert.AreEqual(testUShort, ushortToken.UInt);
+            Assert.AreEqual(testUShort, ushortToken.Long);
+            Assert.AreEqual(testUShort, ushortToken.ULong);
+            Assert.AreEqual(testUShort, ushortToken.Float);
+            Assert.AreEqual(testUShort, ushortToken.Double);
+            Assert.AreEqual(testUShort, ushortToken.Number);
+
+            // not primitive
+            Assert.Throws<InvalidOperationException>(() => _ = ushortToken.String);
+            Assert.Throws<InvalidOperationException>(() => _ = ushortToken.DataList);
+            Assert.Throws<InvalidOperationException>(() => _ = ushortToken.DataDictionary);
+            Assert.Throws<InvalidOperationException>(() => _ = ushortToken.Reference);
+
+            // not error
+            Assert.AreEqual(DataError.None, ushortToken.Error);
+        }
+
+        [Test]
+        public void TestConvertInt()
+        {
+            const int testInt = -1;
+
+            DataToken intToken = new DataToken(testInt);
+
+            // narrowing
+            Assert.Throws<InvalidOperationException>(() => _ = intToken.Boolean);
+            Assert.Throws<InvalidOperationException>(() => _ = intToken.SByte);
+            Assert.Throws<InvalidOperationException>(() => _ = intToken.Byte);
+            Assert.Throws<InvalidOperationException>(() => _ = intToken.Short);
+            Assert.Throws<InvalidOperationException>(() => _ = intToken.UShort);
+            Assert.Throws<InvalidOperationException>(() => _ = intToken.UInt);
+            Assert.Throws<InvalidOperationException>(() => _ = intToken.ULong);
+
+            // stable or widening
+            Assert.AreEqual(testInt, intToken.Int);
+            Assert.AreEqual(testInt, intToken.Long);
+            Assert.AreEqual(testInt, intToken.Float);
+            Assert.AreEqual(testInt, intToken.Double);
+            Assert.AreEqual(testInt, intToken.Number);
+
+            // not primitive
+            Assert.Throws<InvalidOperationException>(() => _ = intToken.String);
+            Assert.Throws<InvalidOperationException>(() => _ = intToken.DataList);
+            Assert.Throws<InvalidOperationException>(() => _ = intToken.DataDictionary);
+            Assert.Throws<InvalidOperationException>(() => _ = intToken.Reference);
+
+            // not error
+            Assert.AreEqual(DataError.None, intToken.Error);
+        }
+
+        [Test]
+        public void TestConvertUInt()
+        {
+            const uint testUInt = 0;
+
+            DataToken uintToken = new DataToken(testUInt);
+
+            // narrowing
+            Assert.Throws<InvalidOperationException>(() => _ = uintToken.Boolean);
+            Assert.Throws<InvalidOperationException>(() => _ = uintToken.SByte);
+            Assert.Throws<InvalidOperationException>(() => _ = uintToken.Byte);
+            Assert.Throws<InvalidOperationException>(() => _ = uintToken.Short);
+            Assert.Throws<InvalidOperationException>(() => _ = uintToken.UShort);
+            Assert.Throws<InvalidOperationException>(() => _ = uintToken.Int);
+
+            // stable or widening
+            Assert.AreEqual(testUInt, uintToken.UInt);
+            Assert.AreEqual(testUInt, uintToken.Long);
+            Assert.AreEqual(testUInt, uintToken.ULong);
+            Assert.AreEqual(testUInt, uintToken.Float);
+            Assert.AreEqual(testUInt, uintToken.Double);
+            Assert.AreEqual(testUInt, uintToken.Number);
+
+            // not primitive
+            Assert.Throws<InvalidOperationException>(() => _ = uintToken.String);
+            Assert.Throws<InvalidOperationException>(() => _ = uintToken.DataList);
+            Assert.Throws<InvalidOperationException>(() => _ = uintToken.DataDictionary);
+            Assert.Throws<InvalidOperationException>(() => _ = uintToken.Reference);
+
+            // not error
+            Assert.AreEqual(DataError.None, uintToken.Error);
+        }
+
+        [Test]
+        public void TestConvertLong()
+        {
+            const long testLong = -1;
+
+            DataToken longToken = new DataToken(testLong);
+
+            // narrowing
+            Assert.Throws<InvalidOperationException>(() => _ = longToken.Boolean);
+            Assert.Throws<InvalidOperationException>(() => _ = longToken.SByte);
+            Assert.Throws<InvalidOperationException>(() => _ = longToken.Byte);
+            Assert.Throws<InvalidOperationException>(() => _ = longToken.Short);
+            Assert.Throws<InvalidOperationException>(() => _ = longToken.UShort);
+            Assert.Throws<InvalidOperationException>(() => _ = longToken.Int);
+            Assert.Throws<InvalidOperationException>(() => _ = longToken.UInt);
+            Assert.Throws<InvalidOperationException>(() => _ = longToken.ULong);
+
+            // stable or widening
+            Assert.AreEqual(testLong, longToken.Long);
+            Assert.AreEqual(testLong, longToken.Float);
+            Assert.AreEqual(testLong, longToken.Double);
+            Assert.AreEqual(testLong, longToken.Number);
+
+            // not primitive
+            Assert.Throws<InvalidOperationException>(() => _ = longToken.String);
+            Assert.Throws<InvalidOperationException>(() => _ = longToken.DataList);
+            Assert.Throws<InvalidOperationException>(() => _ = longToken.DataDictionary);
+            Assert.Throws<InvalidOperationException>(() => _ = longToken.Reference);
+
+            // not error
+            Assert.AreEqual(DataError.None, longToken.Error);
+        }
+
+        [Test]
+        public void TestConvertULong()
+        {
+            const ulong testULong = 0;
+
+            DataToken ulongToken = new DataToken(testULong);
+
+            // narrowing
+            Assert.Throws<InvalidOperationException>(() => _ = ulongToken.Boolean);
+            Assert.Throws<InvalidOperationException>(() => _ = ulongToken.SByte);
+            Assert.Throws<InvalidOperationException>(() => _ = ulongToken.Byte);
+            Assert.Throws<InvalidOperationException>(() => _ = ulongToken.Short);
+            Assert.Throws<InvalidOperationException>(() => _ = ulongToken.UShort);
+            Assert.Throws<InvalidOperationException>(() => _ = ulongToken.Int);
+            Assert.Throws<InvalidOperationException>(() => _ = ulongToken.UInt);
+            Assert.Throws<InvalidOperationException>(() => _ = ulongToken.Long);
+
+            // stable or widening
+            Assert.AreEqual(testULong, ulongToken.ULong);
+            Assert.AreEqual(testULong, ulongToken.Float);
+            Assert.AreEqual(testULong, ulongToken.Double);
+            Assert.AreEqual(testULong, ulongToken.Number);
+
+            // not primitive
+            Assert.Throws<InvalidOperationException>(() => _ = ulongToken.String);
+            Assert.Throws<InvalidOperationException>(() => _ = ulongToken.DataList);
+            Assert.Throws<InvalidOperationException>(() => _ = ulongToken.DataDictionary);
+            Assert.Throws<InvalidOperationException>(() => _ = ulongToken.Reference);
+
+            // not error
+            Assert.AreEqual(DataError.None, ulongToken.Error);
+        }
+
+        [Test]
+        public void TestConvertSingleFloat()
+        {
+            const float testFloat = 1.5f;
+
+            DataToken floatToken = new DataToken(testFloat);
+
+            // narrowing
+            Assert.Throws<InvalidOperationException>(() => _ = floatToken.Boolean);
+            Assert.Throws<InvalidOperationException>(() => _ = floatToken.SByte);
+            Assert.Throws<InvalidOperationException>(() => _ = floatToken.Byte);
+            Assert.Throws<InvalidOperationException>(() => _ = floatToken.Short);
+            Assert.Throws<InvalidOperationException>(() => _ = floatToken.UShort);
+            Assert.Throws<InvalidOperationException>(() => _ = floatToken.Int);
+            Assert.Throws<InvalidOperationException>(() => _ = floatToken.UInt);
+            Assert.Throws<InvalidOperationException>(() => _ = floatToken.Long);
+            Assert.Throws<InvalidOperationException>(() => _ = floatToken.ULong);
+
+            // stable or widening
+            Assert.AreEqual(testFloat, floatToken.Float);
+            Assert.AreEqual(testFloat, floatToken.Double);
+            Assert.AreEqual(testFloat, floatToken.Number);
+
+            // not primitive
+            Assert.Throws<InvalidOperationException>(() => _ = floatToken.String);
+            Assert.Throws<InvalidOperationException>(() => _ = floatToken.DataList);
+            Assert.Throws<InvalidOperationException>(() => _ = floatToken.DataDictionary);
+            Assert.Throws<InvalidOperationException>(() => _ = floatToken.Reference);
+
+            // not error
+            Assert.AreEqual(DataError.None, floatToken.Error);
+        }
+
+        [Test]
+        public void TestConvertDoubleFloat()
+        {
+            const double testDouble = 1.5;
+
+            DataToken doubleToken = new DataToken(testDouble);
+
+            // narrowing
+            Assert.Throws<InvalidOperationException>(() => _ = doubleToken.Boolean);
+            Assert.Throws<InvalidOperationException>(() => _ = doubleToken.SByte);
+            Assert.Throws<InvalidOperationException>(() => _ = doubleToken.Byte);
+            Assert.Throws<InvalidOperationException>(() => _ = doubleToken.Short);
+            Assert.Throws<InvalidOperationException>(() => _ = doubleToken.UShort);
+            Assert.Throws<InvalidOperationException>(() => _ = doubleToken.Int);
+            Assert.Throws<InvalidOperationException>(() => _ = doubleToken.UInt);
+            Assert.Throws<InvalidOperationException>(() => _ = doubleToken.Long);
+            Assert.Throws<InvalidOperationException>(() => _ = doubleToken.ULong);
+            Assert.Throws<InvalidOperationException>(() => _ = doubleToken.Float);
+
+            // stable or widening
+            Assert.AreEqual(testDouble, doubleToken.Double);
+            Assert.AreEqual(testDouble, doubleToken.Number);
+
+            // not primitive
+            Assert.Throws<InvalidOperationException>(() => _ = doubleToken.String);
+            Assert.Throws<InvalidOperationException>(() => _ = doubleToken.DataList);
+            Assert.Throws<InvalidOperationException>(() => _ = doubleToken.DataDictionary);
+            Assert.Throws<InvalidOperationException>(() => _ = doubleToken.Reference);
+
+            // not error
+            Assert.AreEqual(DataError.None, doubleToken.Error);
+        }
+        
+        #endregion
     }
 }

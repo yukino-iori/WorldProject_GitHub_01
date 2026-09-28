@@ -297,8 +297,17 @@ namespace VRC.Udon.Editor.ProgramSources
                 EditorGUILayout.LabelField("Disassembled Program", EditorStyles.boldLabel);
                 using(new EditorGUI.DisabledScope(true))
                 {
-                    string[] disassembledProgram = UdonEditorManager.Instance.DisassembleProgram(program);
-                    EditorGUILayout.TextArea(string.Join("\n", disassembledProgram));
+                    string disassemblyText;
+                    if (program != null)
+                    {
+                        string[] disassembledProgram = UdonEditorManager.Instance.DisassembleProgram(program);
+                        disassemblyText = string.Join("\n", disassembledProgram);
+                    }
+                    else
+                    {
+                        disassemblyText = string.Empty;
+                    }
+                    EditorGUILayout.TextArea(disassemblyText);
                 }
             }
             catch(Exception e)

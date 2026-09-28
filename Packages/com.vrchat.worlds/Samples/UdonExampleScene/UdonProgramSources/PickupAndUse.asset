@@ -12,7 +12,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 4f11136daadff0b44ac2278a314682ab, type: 3}
   m_Name: PickupAndUse
   m_EditorClassIdentifier: 
-  serializedUdonProgramAsset: {fileID: 11400000, guid: ca01a457f355c86498fc572d133e7ad2, type: 2}
+  serializedUdonProgramAsset: {fileID: 11400000, guid: ca01a457f355c86498fc572d133e7ad2,
+    type: 2}
   udonAssembly: ".data_start\r\n\r\n    \r\n    __instance_0: %UnityEngineMaterial,
     null\r\n    __value_0: %UnityEngineColor, null\r\n    __instance_1: %UnityEngineMaterial,
     null\r\n    __value_1: %UnityEngineColor, null\r\n    __instance_2: %UnityEngineMeshRenderer,
@@ -180,5 +181,8 @@ MonoBehaviour:
   - type: 4
     uid: 46d8d053-df09-42aa-b83b-0d8d8bbabc43
     jsonData: '{"visible":false,"layout":{"serializedVersion":"2","x":10.0,"y":20.0,"width":0.0,"height":0.0}}'
+  viewTransform:
+    position: {x: 542, y: 502}
+    scale: 0.76714456
   version: 1.0.0
   showAssembly: 0

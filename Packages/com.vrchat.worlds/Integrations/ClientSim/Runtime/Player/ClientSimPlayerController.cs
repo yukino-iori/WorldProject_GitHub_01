@@ -114,11 +114,11 @@ namespace VRC.SDK3.ClientSim
             _input?.UnsubscribeJump(JumpInput);
             _input?.UnsubscribeRun(RunInput);
 
-            _eventDispatcher.Unsubscribe<ClientSimMenuStateChangedEvent>(SetMenuOpen);
-            _eventDispatcher.Unsubscribe<ClientSimMenuRespawnClickedEvent>(MenuRespawnEvent);
-            _eventDispatcher.Unsubscribe<ClientSimMouseReleasedEvent>(MouseReleasedEvent);
-            _eventDispatcher.Unsubscribe<ClientSimPlayerDeathStatusChangedEvent>(CombatStatusEvent);
-            _eventDispatcher.Unsubscribe<ClientSimOnTrackingScaleUpdateEvent>(OnTrackingScaleUpdated);
+            _eventDispatcher?.Unsubscribe<ClientSimMenuStateChangedEvent>(SetMenuOpen);
+            _eventDispatcher?.Unsubscribe<ClientSimMenuRespawnClickedEvent>(MenuRespawnEvent);
+            _eventDispatcher?.Unsubscribe<ClientSimMouseReleasedEvent>(MouseReleasedEvent);
+            _eventDispatcher?.Unsubscribe<ClientSimPlayerDeathStatusChangedEvent>(CombatStatusEvent);
+            _eventDispatcher?.Unsubscribe<ClientSimOnTrackingScaleUpdateEvent>(OnTrackingScaleUpdated);
         }
 
         #region Input Events

@@ -5,6 +5,7 @@ using UnityEngine;
 using VRC.Udon;
 
 [DefaultExecutionOrder(31000)] // needs to live here for SDK
+[AddComponentMenu("")]
 public class PostLateUpdater : MonoBehaviour
 {
     public UdonManager udonManager;

@@ -1,16 +1,39 @@
 ﻿using UnityEngine;
 using System.Collections.Generic;
+using UnityEngine.Rendering;
 
 [RequireComponent(typeof(Camera))]
+[AddComponentMenu("")]
 public class HighlightsFX : PostEffectsBase
 {
     public static HighlightsFX Instance { get; protected set; }
 
-    protected readonly HashSet<Renderer> objectsToRender = new HashSet<Renderer>();
+    protected struct OutlineData
+    {
+        public readonly Renderer Renderer;
+        public readonly int SubMeshCount;
+        public readonly Color Color;
+
+        public OutlineData(Renderer renderer, Mesh sharedMesh, Color color)
+        {
+            Renderer = renderer;
+            SubMeshCount = sharedMesh.subMeshCount;
+            Color = color;
+        }
+
+        public bool IsValid()
+        {
+            return Renderer != null;
+        }
+    }
+
+    protected readonly Dictionary<Renderer, OutlineData> objectsToRender = new();
     protected Shader highlightShader;
     protected Material highlightMaterial;
 
-    #region HighlightsFX Singleton Methods
+    protected CommandBuffer _commandBuffer;
+
+    #region Public Methods
 
     public static void EnableObjectHighlight(Renderer outlineRenderer, bool enable)
     {
@@ -27,9 +50,39 @@ public class HighlightsFX : PostEffectsBase
             return;
         }
 
+        Mesh sharedMesh = null;
+        if (outlineRenderer is MeshRenderer outlineMeshRenderer && outlineMeshRenderer.TryGetComponent(out MeshFilter meshFilter))
+        {
+            sharedMesh = meshFilter.sharedMesh;
+        }
+        else if (outlineRenderer is SkinnedMeshRenderer outlineSkinnedMeshRenderer)
+        {
+            sharedMesh = outlineSkinnedMeshRenderer.sharedMesh;
+        }
+
+        if (sharedMesh == null)
+        {
+            return;
+        }
+
+        OutlineData data = new OutlineData(
+            outlineRenderer,
+            sharedMesh,
+            highlightColor
+        );
+        EnableOutline(outlineRenderer, data, enable);
+    }
+
+    private void EnableOutline(Renderer outlineRenderer, OutlineData outlineData, bool enable)
+    {
+        if(outlineRenderer == null)
+        {
+            return;
+        }
+
         if(enable)
         {
-            objectsToRender.Add(outlineRenderer);
+            objectsToRender[outlineRenderer] = outlineData;
         }
         else
         {
@@ -43,6 +96,9 @@ public class HighlightsFX : PostEffectsBase
 
     private const int DRAW_DEPTH_PREPASS = 0;
     private const int DRAW_HIGHLIGHT_PASS = 1;
+
+    private const string CommandBufferName = "HighlightsFXMobile";
+    private const string HighlightShaderName = "Hidden/VRChat/MobileHighlight";
 
     #endregion
     
@@ -83,66 +139,84 @@ public class HighlightsFX : PostEffectsBase
 
         Instance = this;
         
-        highlightShader = Shader.Find("Hidden/VRChat/MobileHighlight");
-    }
-    
-    private void OnPostRender()
-    {
-        DrawMobileHighlight();
+        highlightShader = Shader.Find(HighlightShaderName);
+        SetupCommandBuffer();
     }
 
-    protected virtual void OnDestroy()
+    private void OnDisable()
     {
+        ClearCommandBuffer();
+    }
+    
+    private void OnPreRender()
+    {
+        ClearCommandBuffer();
+
+        if(objectsToRender.Count == 0)
+        {
+            return;
+        }
+
+        if (_commandBuffer != null)
+        {
+            PopulateCommandBuffer();
+        }
+    }
+
+    protected override void OnDestroy()
+    {
+        DisposeCommandBuffer();
+        base.OnDestroy();
         Instance = null;
     }
 
     #endregion
     
-    #region Mobile Highlight
+    #region Command Buffer Management
 
-    private void DrawMobileHighlight()
+    private void SetupCommandBuffer()
     {
-        objectsToRender.RemoveWhere(o => o == null);
-
-        float highlightAlpha = Mathf.Lerp(mobileMinimumOpacity, mobileMaximumOpacity, 0.5f * Mathf.Sin(mobilePulseSpeed * Time.timeSinceLevelLoad) + 0.5f);
-        highlightMaterial.SetColor(highlightColorId, new Color(highlightColor.r, highlightColor.g, highlightColor.b, highlightColor.a * highlightAlpha));
-
-        foreach(Renderer highlightedRenderer in objectsToRender)
+        if (_commandBuffer == null)
         {
-            MeshFilter meshFilter = highlightedRenderer.GetComponent<MeshFilter>();
-            if(meshFilter == null)
-            {
-                continue;
-            }
-
-            if(meshFilter.sharedMesh == null)
-            {
-                continue;
-            }
-
-            Mesh sharedMesh = meshFilter.sharedMesh;
-            Matrix4x4 localToWorldMatrix = highlightedRenderer.transform.localToWorldMatrix;
-            highlightMaterial.SetPass(DRAW_DEPTH_PREPASS);
-            Graphics.DrawMeshNow(sharedMesh, localToWorldMatrix);
+            _commandBuffer = new CommandBuffer { name = CommandBufferName };
         }
 
-        foreach(Renderer highlightedRenderer in objectsToRender)
+        GetComponent<Camera>().AddCommandBuffer(CameraEvent.AfterImageEffectsOpaque, _commandBuffer);
+    }
+
+    private void DisposeCommandBuffer()
+    {
+        if (_commandBuffer != null)
         {
-            MeshFilter meshFilter = highlightedRenderer.GetComponent<MeshFilter>();
-            if(meshFilter == null)
-            {
-                continue;
-            }
+            GetComponent<Camera>().RemoveCommandBuffer(CameraEvent.AfterImageEffectsOpaque, _commandBuffer);
+            _commandBuffer.Dispose();
 
-            if(meshFilter.sharedMesh == null)
-            {
-                continue;
-            }
+            _commandBuffer = null;
+        }
+    }
 
-            Mesh sharedMesh = meshFilter.sharedMesh;
-            Matrix4x4 localToWorldMatrix = highlightedRenderer.transform.localToWorldMatrix;
-            highlightMaterial.SetPass(DRAW_HIGHLIGHT_PASS);
-            Graphics.DrawMeshNow(sharedMesh, localToWorldMatrix);
+    private void PopulateCommandBuffer()
+    {
+        float highlightAlpha = Mathf.Lerp(mobileMinimumOpacity, mobileMaximumOpacity, 0.5f * Mathf.Sin(mobilePulseSpeed * Time.timeSinceLevelLoad) + 0.5f);
+
+        // Depth prepass for all objects
+        foreach (var (component, outlineData) in objectsToRender)
+        {
+            AddDepthPrepassCommands(outlineData);
+        }
+
+        // Highlight pass for all objects
+        foreach (var (component, outlineData) in objectsToRender)
+        {
+            AddHighlightPassCommands(outlineData, highlightAlpha);
+        }
+    }
+
+    private void ClearCommandBuffer()
+    {
+        if (_commandBuffer != null)
+        {
+            _commandBuffer.Clear();
         }
     }
 
@@ -162,6 +236,41 @@ public class HighlightsFX : PostEffectsBase
         }
 
         return isSupported;
+    }
+
+    #endregion
+
+
+    #region Mobile Highlight
+
+    private void AddDepthPrepassCommands(OutlineData outlineData)
+    {
+        if (!outlineData.IsValid())
+        {
+            return;
+        }
+
+        for (int i = 0; i < outlineData.SubMeshCount; i++)
+        {
+            _commandBuffer.DrawRenderer(outlineData.Renderer, highlightMaterial, i, DRAW_DEPTH_PREPASS);
+        }
+    }
+
+    private void AddHighlightPassCommands(OutlineData outlineData, float highlightAlpha)
+    {
+        if (!outlineData.IsValid())
+        {
+            return;
+        }
+
+        Color color = outlineData.Color;
+        color.a *= highlightAlpha;
+        _commandBuffer.SetGlobalColor(highlightColorId, color);
+
+        for (int i = 0; i < outlineData.SubMeshCount; i++)
+        {
+            _commandBuffer.DrawRenderer(outlineData.Renderer, highlightMaterial, i, DRAW_HIGHLIGHT_PASS);
+        }
     }
 
     #endregion

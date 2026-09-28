@@ -43,6 +43,7 @@ namespace UdonSharp.Compiler
         // public bool BuildDebugInfo { get; set; } = true;
         public bool DisableLogging { get; set; } = false;
         public bool ConcurrentBuild { get; set; } = true;
+        public BuildTarget CurrentBuildTarget { get; set; } = BuildTarget.NoTarget;
     }
     
     [InitializeOnLoad]
@@ -240,6 +241,10 @@ namespace UdonSharp.Compiler
         public static void CompileSync(UdonSharpCompileOptions options = null)
         {
             WaitForCompile();
+            if (options != null && options.CurrentBuildTarget == BuildTarget.NoTarget)
+            {
+                options.CurrentBuildTarget = EditorUserBuildSettings.activeBuildTarget;
+            } 
             Compile(options);
             WaitForCompile();
         }
@@ -257,7 +262,12 @@ namespace UdonSharp.Compiler
         public static void Compile(UdonSharpCompileOptions options = null)
         {
             if (options == null)
-                options = new UdonSharpCompileOptions();
+            {
+                options = new UdonSharpCompileOptions
+                {
+                    CurrentBuildTarget = EditorUserBuildSettings.activeBuildTarget,
+                };
+            }
 
             if (UdonSharpUtils.DoesUnityProjectHaveCompileErrors())
             {
@@ -325,13 +335,13 @@ namespace UdonSharp.Compiler
                 return;
 
             CompilationContext compilationContext = new CompilationContext(options);
-            string[] defines = UdonSharpUtils.GetProjectDefines(options.IsEditorBuild);
 
             EditorApplication.LockReloadAssemblies();
             
             CompilerUdonInterface.AssemblyCacheInit();
 
-            Task compileTask = new Task(() => Compile(compilationContext, rootProgramLookup, allSourcePaths, defines));
+            IEnumerable<CompilationContext.ScriptAssembly> scriptAssemblies = CompilationContext.GetBuildAssemblies(options.IsEditorBuild, options.CurrentBuildTarget);
+            Task compileTask = new Task(() => Compile(compilationContext, rootProgramLookup, scriptAssemblies));
             CurrentJob = new CompileJob() { Context = compilationContext, Task = compileTask, CompileTimer = Stopwatch.StartNew(), CompileOptions = options };
             
             compileTask.Start();
@@ -397,14 +407,14 @@ namespace UdonSharp.Compiler
             return succeeded;
         }
 
-        private static void Compile(CompilationContext compilationContext, IReadOnlyDictionary<string, ProgramAssetInfo> rootProgramLookup, IEnumerable<string> allSourcePaths, string[] scriptingDefines)
+        private static void Compile(CompilationContext compilationContext, IReadOnlyDictionary<string, ProgramAssetInfo> rootProgramLookup, IEnumerable<CompilationContext.ScriptAssembly> allScriptAssemblies)
         {
             Stopwatch setupTimer = Stopwatch.StartNew();
             
             CompilerUdonInterface.CacheInit();
             
             compilationContext.CurrentPhase = CompilationContext.CompilePhase.Setup;
-            ModuleBinding[] syntaxTrees = compilationContext.LoadSyntaxTreesAndCreateModules(allSourcePaths, scriptingDefines);
+            ModuleBinding[] syntaxTrees = compilationContext.LoadSyntaxTreesAndCreateModules(allScriptAssemblies);
 
             foreach (ModuleBinding binding in syntaxTrees)
             {

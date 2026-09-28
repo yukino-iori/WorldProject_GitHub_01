@@ -401,7 +401,7 @@ namespace VRC.Core
                 RuntimeAnimatorController animatorController = animator.runtimeAnimatorController;
                 if(animatorController == null)
                 {
-                    return;
+                    continue;
                 }
 
                 foreach(AnimationClip animationClip in animatorController.animationClips)
@@ -424,7 +424,7 @@ namespace VRC.Core
                             continue;
                         }
 
-                        animationClip.events = null;
+                        animationClip.events = Array.Empty<AnimationEvent>();
                         LogRemoval(
                             $"Removed AnimationEvents from AnimationClip used by the Animator on '{animator.gameObject}' because the event targets '{animationEventFunctionName}' which is not allowed.");
 

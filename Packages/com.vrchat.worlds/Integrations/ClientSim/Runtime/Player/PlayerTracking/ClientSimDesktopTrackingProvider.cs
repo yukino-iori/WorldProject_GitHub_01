@@ -84,9 +84,9 @@ namespace VRC.SDK3.ClientSim
         {
             base.UnsubscribeEvents();
             
-            eventDispatcher.Unsubscribe<ClientSimMouseReleasedEvent>(MouseReleasedEvent);
-            eventDispatcher.Unsubscribe<ClientSimOnPlayerEnteredStationEvent>(PlayerEnteredStation);
-            eventDispatcher.Unsubscribe<ClientSimOnPlayerExitedStationEvent>(PlayerExitedStation);
+            eventDispatcher?.Unsubscribe<ClientSimMouseReleasedEvent>(MouseReleasedEvent);
+            eventDispatcher?.Unsubscribe<ClientSimOnPlayerEnteredStationEvent>(PlayerEnteredStation);
+            eventDispatcher?.Unsubscribe<ClientSimOnPlayerExitedStationEvent>(PlayerExitedStation);
         }
 
         #endregion

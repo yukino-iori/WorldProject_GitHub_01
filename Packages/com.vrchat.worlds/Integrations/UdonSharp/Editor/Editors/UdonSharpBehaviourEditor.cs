@@ -80,50 +80,110 @@ namespace UdonSharpEditor
         [MenuItem("Assets/Create/U# Script", false, 5)]
         private static void CreateUSharpScript()
         {
-            string folderPath = "Assets/";
+            string folderPath = string.Empty;
             if (Selection.activeObject != null)
             {
                 folderPath = AssetDatabase.GetAssetPath(Selection.activeObject);
-                if (Selection.activeObject.GetType() != typeof(UnityEditor.DefaultAsset))
+                if (!string.IsNullOrEmpty(folderPath) && Selection.activeObject.GetType() != typeof(UnityEditor.DefaultAsset))
                 {
                     folderPath = Path.GetDirectoryName(folderPath);
                 }
             }
             else if (Selection.assetGUIDs.Length > 0)
             {
-                folderPath = AssetDatabase.GUIDToAssetPath(Selection.assetGUIDs[0]);
+                string assetPath = AssetDatabase.GUIDToAssetPath(Selection.assetGUIDs[0]);
+                if (!string.IsNullOrEmpty(assetPath))
+                {
+                    folderPath = Path.GetDirectoryName(assetPath);
+                }
             }
 
-            folderPath = folderPath.Replace('\\', '/');
-            
-            string chosenFilePath = EditorUtility.SaveFilePanel("Save UdonSharp File", folderPath, "", "cs");
+            CreateUSharpScript(folderPath, true);
+        }
+        /// <summary>
+        /// Present the dialog for creating a new U# script and create the script and asset if a valid location is chosen.
+        /// </summary>
+        /// <param name="folderPath">The folder to begin browsing in, or an empty string.</param>
+        /// <param name="createProgramAsset">If true, also create a U# program asset alongside the new C# source file.
+        /// The asset will automatically be linked to the source file. If false, only a source file is created.</param>
+        /// <returns>The final project-relative file path of the created script or null if creation failed.</returns>
+        internal static string CreateUSharpScript(string folderPath, bool createProgramAsset)
+        {
+            string chosenFilePath = EditorUtility.SaveFilePanel("Save UdonSharp File", folderPath, string.Empty, "cs");
 
             if (chosenFilePath.Length > 0)
             {
-                chosenFilePath = UdonSharpSettings.SanitizeScriptFilePath(chosenFilePath);
-                string chosenFileName = Path.GetFileNameWithoutExtension(chosenFilePath).Replace(" ", "").Replace("#", "Sharp");
-                string assetFilePath = Path.Combine(Path.GetDirectoryName(chosenFilePath), $"{chosenFileName}.asset");
+                string chosenDirectory = Path.GetDirectoryName(chosenFilePath)!;
+                string sanitizedFileName = UdonSharpSettings.SanitizeName(Path.GetFileNameWithoutExtension(chosenFilePath));
+                string scriptFilePath = Path.Combine(chosenDirectory, $"{sanitizedFileName}.cs").Replace('\\', '/');
+                string assetFilePath = Path.Combine(chosenDirectory, $"{sanitizedFileName}.asset").Replace('\\', '/');
 
-                if (AssetDatabase.LoadAssetAtPath<UdonSharpProgramAsset>(assetFilePath) != null)
+                string assetsPath = Application.dataPath.Replace('\\', '/');
+                string projectRootPath = Path.GetDirectoryName(assetsPath)!;
+                string packagesPath = Path.Combine(projectRootPath, "Packages").Replace('\\', '/');
+                if (!scriptFilePath.StartsWith(assetsPath + "/") && !scriptFilePath.StartsWith(packagesPath + "/"))
                 {
-                    if (!EditorUtility.DisplayDialog("File already exists", $"Corresponding asset file '{assetFilePath}' already found for new UdonSharp script. Overwrite?", "Ok", "Cancel"))
-                        return;
+                    EditorUtility.DisplayDialog("Invalid path", "UdonSharp scripts must be created inside the project's Assets or Packages folders.", "Ok");
+                    return null;
                 }
 
-                string fileContents = UdonSharpSettings.GetProgramTemplateString(chosenFileName);
+                string projectRelativeScriptPath = scriptFilePath.Substring(projectRootPath.Length + 1);
+                string projectRelativeAssetPath = assetFilePath.Substring(projectRootPath.Length + 1);
 
-                File.WriteAllText(chosenFilePath, fileContents, System.Text.Encoding.UTF8);
+                if (createProgramAsset)
+                {
+                    if (AssetDatabase.LoadAssetAtPath<UdonSharpProgramAsset>(projectRelativeAssetPath) != null)
+                    {
+                        if (!EditorUtility.DisplayDialog("File already exists", $"Corresponding asset file '{projectRelativeAssetPath}' already found for new UdonSharp script. Overwrite?", "Ok", "Cancel"))
+                        {
+                            return null;
+                        }
+                    }
+                }
 
-                AssetDatabase.ImportAsset(chosenFilePath, ImportAssetOptions.ForceSynchronousImport);
-                MonoScript newScript = AssetDatabase.LoadAssetAtPath<MonoScript>(chosenFilePath);
+                // Commit to creation from this point
 
-                UdonSharpProgramAsset newProgramAsset = CreateInstance<UdonSharpProgramAsset>();
-                newProgramAsset.sourceCsScript = newScript;
+                string fileContents = UdonSharpSettings.GetProgramTemplateString(sanitizedFileName);
 
-                AssetDatabase.CreateAsset(newProgramAsset, assetFilePath);
+                File.WriteAllText(scriptFilePath, fileContents, System.Text.Encoding.UTF8);
+
+                AssetDatabase.ImportAsset(projectRelativeScriptPath, ImportAssetOptions.ForceSynchronousImport);
+
+                if (createProgramAsset)
+                {
+                    MonoScript newScript = AssetDatabase.LoadAssetAtPath<MonoScript>(projectRelativeScriptPath);
+
+                    UdonSharpProgramAsset newProgramAsset = CreateInstance<UdonSharpProgramAsset>();
+                    newProgramAsset.sourceCsScript = newScript;
+
+                    bool isPackagesAsset = scriptFilePath.StartsWith(packagesPath);
+
+                    if (!isPackagesAsset)
+                    {
+                        AssetDatabase.CreateAsset(newProgramAsset, projectRelativeAssetPath);
+                    }
+                    else
+                    {
+                        // Unity's CreateAsset() cannot create assets in Packages. Create the file under Assets and then move it.
+                        // This is an unusual flow for most users, but package authors need it.
+                        string tempAssetPath = $"Assets/pkgUdon_{Guid.NewGuid()}.asset";
+                        AssetDatabase.CreateAsset(newProgramAsset, tempAssetPath);
+                        string moveErr = AssetDatabase.MoveAsset(tempAssetPath, projectRelativeAssetPath);
+                        if (!string.IsNullOrEmpty(moveErr))
+                        {
+                            AssetDatabase.DeleteAsset(tempAssetPath);
+                            EditorUtility.DisplayDialog("File creation error", $"Failed to move the temporary UdonSharp asset '{tempAssetPath}' to package path '{projectRelativeAssetPath}': \"{moveErr}\"\n\nIf this keeps happening, try creating the script in the Assets folder and manually moving it to Packages instead.", "Ok");
+                            return null;
+                        }
+                    }
+                }
 
                 AssetDatabase.Refresh();
+
+                return projectRelativeScriptPath;
             }
+
+            return null;
         }
 
         private enum BehaviourInspectorErrorState
@@ -214,12 +274,15 @@ namespace UdonSharpEditor
                 
                 if (udonSharpBehaviour != null)
                     udonSharpBehaviour.enabled = targetBehaviour.enabled;
-                
-            #if !UDONSHARP_DEBUG
-                targetBehaviour.hideFlags = HideFlags.HideInInspector;
-            #else
-                targetBehaviour.hideFlags = HideFlags.None;
-            #endif
+
+                EditorApplication.delayCall += () =>
+                {
+#if !UDONSHARP_DEBUG
+                    targetBehaviour.hideFlags = HideFlags.HideInInspector;
+#else
+                    targetBehaviour.hideFlags = HideFlags.None;
+#endif
+                };
             }
         }
 
@@ -228,12 +291,6 @@ namespace UdonSharpEditor
             switch (errorState)
             {
                 case BehaviourInspectorErrorState.Success:
-                #if UDONSHARP_DEBUG
-                    EditorGUILayout.HelpBox("UDONSHARP_DEBUG is defined; backing UdonBehaviour is shown", MessageType.Info);
-                #else
-                    EditorGUILayout.HelpBox("Something probably went wrong, you should not be able to see the underlying UdonBehaviour for UdonSharpBehaviours", MessageType.Warning);
-                #endif
-            
                     EditorGUI.BeginDisabledGroup(true);
                     EditorGUILayout.ObjectField("Linked U# Behaviour", UdonSharpEditorUtility.GetProxyBehaviour((UdonBehaviour)target), typeof(UdonSharpBehaviour), true);
                     EditorGUILayout.ObjectField("Program Source", ((UdonBehaviour)target).programSource, typeof(AbstractUdonProgramSource), false);

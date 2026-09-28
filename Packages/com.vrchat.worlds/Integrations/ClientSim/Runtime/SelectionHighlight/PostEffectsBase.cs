@@ -4,6 +4,7 @@ using UnityEngine;
 
 [ExecuteInEditMode]
 [RequireComponent(typeof(Camera))]
+[AddComponentMenu("")]
 public class PostEffectsBase : MonoBehaviour
 {
     protected bool supportHDRTextures = true;
@@ -67,7 +68,7 @@ public class PostEffectsBase : MonoBehaviour
         isSupported = true;
     }
 
-    void OnDestroy()
+    protected virtual void OnDestroy()
     {
         RemoveCreatedMaterials();
     }

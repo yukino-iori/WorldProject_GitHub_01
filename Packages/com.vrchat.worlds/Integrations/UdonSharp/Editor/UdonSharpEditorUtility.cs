@@ -118,6 +118,11 @@ namespace UdonSharpEditor
             _programAssetTypeLookup = null;
         }
 
+        public static void ResetAssemblyCaches()
+        {
+            UdonSharpUtils.ResetAssemblyCaches();
+        }
+
         private static UdonSharpProgramAsset GetUdonSharpProgramAsset(MonoScript programScript)
         {
             InitTypeLookups();
@@ -917,11 +922,16 @@ namespace UdonSharpEditor
                 }
             }
 
-        #if UDONSHARP_DEBUG
-            backingBehaviour.hideFlags &= ~HideFlags.HideInInspector;
-        #else
-            backingBehaviour.hideFlags |= HideFlags.HideInInspector;
-        #endif
+            // hideFlags, delayed as Unity's layout system is corrupted otherwise
+            EditorApplication.delayCall += () =>
+            {
+#if UDONSHARP_DEBUG
+                backingBehaviour.hideFlags &= ~HideFlags.HideInInspector;
+#else
+                backingBehaviour.hideFlags |= HideFlags.HideInInspector;
+#endif
+                UdonSharpUtils.SetDirty(backingBehaviour);
+            };
             
             ((UdonSharpProgramAsset)backingBehaviour.programSource)?.UpdateProgram();
         }

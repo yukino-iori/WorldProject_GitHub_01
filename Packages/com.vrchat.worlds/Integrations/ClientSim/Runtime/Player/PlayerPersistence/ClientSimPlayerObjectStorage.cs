@@ -46,6 +46,7 @@ namespace VRC.SDK3.ClientSim.Persistence
         private const float _updateInterval = 1 / 4f;
         
         private bool hadUpdate = false;
+        private bool isSaving = false;
 
         public int Size =>
             VRCJson.TrySerializeToJson(_persistentObjectData, JsonExportType.Beautify, out DataToken json)
@@ -123,13 +124,20 @@ namespace VRC.SDK3.ClientSim.Persistence
 
         private async UniTask SaveToFile(string data)
         {
-            await UniTask.SwitchToTaskPool();
-            try{
+            isSaving = true;
+
+            try
+            {
+                await UniTask.SwitchToTaskPool();
                 await File.WriteAllTextAsync(PlayerDataFilePath(_player), data);
             }
             catch (Exception e)
             {
                 this.LogError($"Error saving PlayerObjects: {e.Message}");
+            }
+            finally
+            {
+                isSaving = false;
             }
         }
 
@@ -172,6 +180,12 @@ namespace VRC.SDK3.ClientSim.Persistence
         private float lastCheckTime = 0;
         public void LateUpdate()
         {
+            if (isSaving)
+            {
+                // Allow saving to finish first.
+                return;
+            }
+
             if (hadUpdate)
             {
                 hadUpdate = false;

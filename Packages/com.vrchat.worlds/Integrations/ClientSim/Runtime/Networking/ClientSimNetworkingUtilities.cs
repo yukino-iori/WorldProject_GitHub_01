@@ -43,7 +43,14 @@ namespace VRC.SDK3.ClientSim
             /// <remarks>The current owner has to implement IPunCallbacks.OnOwnershipRequest to react to the ownership request.</remarks>
             Request
         }
-        
+
+        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterAssembliesLoaded)]
+        private static void RuntimeInitialize()
+        {
+            // Clear from previous play session. Covers projects with play mode domain reloading disabled.
+            _playerObjectList = null;
+        }
+
         public static VRCPlayerObject[] GetPlayerObjectList()
         {
             if (_playerObjectList == null)

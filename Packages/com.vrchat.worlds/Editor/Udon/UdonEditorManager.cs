@@ -69,12 +69,29 @@ namespace VRC.Udon.Editor
 
         #endregion
 
-        #region Initialization
+        #region Lifetime
 
         [InitializeOnLoadMethod]
         private static void Initialize()
         {
             _instance = new UdonEditorManager();
+
+            if (Application.isPlaying)
+            {
+                // Try to recover following a play-mode domain reload...
+                UdonManager.Initialize();
+            }
+
+            AssemblyReloadEvents.beforeAssemblyReload -= HandlePreAssemblyReload;
+            AssemblyReloadEvents.beforeAssemblyReload += HandlePreAssemblyReload;
+        }
+
+        private static void HandlePreAssemblyReload()
+        {
+            if (UdonManager.HasInstance)
+            {
+                UdonManager.Instance.Dispose();
+            }
         }
 
         #endregion
@@ -332,7 +349,7 @@ namespace VRC.Udon.Editor
 
         #endregion
 
-        #region PlayMode Callback
+        #region PlayMode Callbacks
 
         private void OnPlayModeStateChanged(PlayModeStateChange playModeStateChange)
         {

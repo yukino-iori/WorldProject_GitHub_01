@@ -264,7 +264,7 @@ namespace VRC.SDK3.ClientSim
 
         public virtual void UnsubscribeEvents()
         {
-            eventDispatcher.Unsubscribe<ClientSimOnPlayerHeightUpdateEvent>(OnPlayerHeightUpdate);
+            eventDispatcher?.Unsubscribe<ClientSimOnPlayerHeightUpdateEvent>(OnPlayerHeightUpdate);
         }
     }
 }

@@ -17,9 +17,9 @@ MonoBehaviour:
   description: Default scene for VRChat worlds
   preview: {fileID: 8988753837962126725}
   dependencies:
-  - dependency: {fileID: 102900000, guid: 4ecd63eff847044b68db9453ce219299, type: 3}
+  - dependency: {fileID: 2800000, guid: ab61bdfed53bd7a408985498cbde68cd, type: 3}
     instantiationMode: 1
-  - dependency: {fileID: 11400000, guid: b082deabe32ac314ab04987352d4761a, type: 2}
+  - dependency: {fileID: 102900000, guid: 4ecd63eff847044b68db9453ce219299, type: 3}
     instantiationMode: 1
   - dependency: {fileID: 2100000, guid: 74de320d298ce3e498b0401ec1ffcb7f, type: 2}
     instantiationMode: 0
@@ -31,8 +31,16 @@ MonoBehaviour:
     instantiationMode: 0
   - dependency: {fileID: 11400000, guid: 566cc00e27d5822449529a3785eae366, type: 2}
     instantiationMode: 1
+  - dependency: {fileID: 11400000, guid: 9d594755f39687841a853da9a4082c1f, type: 2}
+    instantiationMode: 1
+  - dependency: {fileID: 11400000, guid: 401523cfcfbbdb947bb4390d863b9c22, type: 2}
+    instantiationMode: 1
   - dependency: {fileID: 2100000, guid: 21221da753878694b9b9518a540dda85, type: 2}
     instantiationMode: 0
+  - dependency: {fileID: 11400000, guid: 49bdbac884098d3488a9347b3c0fa1b2, type: 2}
+    instantiationMode: 1
+  - dependency: {fileID: 11400000, guid: 17830d157f00b09408e9c38c2091a851, type: 2}
+    instantiationMode: 1
   - dependency: {fileID: 2800000, guid: 5e07d6e71c9ed3f409237935b1c7a96e, type: 3}
     instantiationMode: 0
   - dependency: {fileID: 2100000, guid: fd20e45036ef323459e8286e9c23c02c, type: 2}
@@ -41,12 +49,10 @@ MonoBehaviour:
     instantiationMode: 0
   - dependency: {fileID: 2800000, guid: 4ba9f24739c8721499ae85110ba2157d, type: 3}
     instantiationMode: 0
-  - dependency: {fileID: 2800000, guid: b2c2c1a52cdb75943958a408093dee04, type: 3}
-    instantiationMode: 0
   - dependency: {fileID: 102900000, guid: 661092b4961be7145bfbe56e1e62337b, type: 3}
     instantiationMode: 1
-  - dependency: {fileID: 11400000, guid: c7dcd82d4a18e68409bbab31d8165b0c, type: 2}
-    instantiationMode: 1
+  - dependency: {fileID: 2800000, guid: b2c2c1a52cdb75943958a408093dee04, type: 3}
+    instantiationMode: 0
   templatePipeline: {fileID: 11500000, guid: bf20236fb08516648b2ad94610a4d752, type: 3}
   badge: {fileID: 8988753837962126725}
   addToDefaults: 1

@@ -12,7 +12,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 4f11136daadff0b44ac2278a314682ab, type: 3}
   m_Name: SliderSync
   m_EditorClassIdentifier: 
-  serializedUdonProgramAsset: {fileID: 11400000, guid: c0be0a8c517995a458fd900c40362246, type: 2}
+  serializedUdonProgramAsset: {fileID: 11400000, guid: c0be0a8c517995a458fd900c40362246,
+    type: 2}
   udonAssembly: ".data_start\r\n\r\n    .export uiSlider\r\n    .export uiText\r\n   
     .sync sliderValue, none\r\n    \r\n    __Boolean_0: %SystemBoolean, null\r\n   
     __Single_0: %SystemSingle, null\r\n    __Single_1: %SystemSingle, null\r\n   
@@ -336,5 +337,8 @@ MonoBehaviour:
   - type: 4
     uid: 375ae574-056c-4f5d-a57b-0c9c2c87c61a
     jsonData: '{"visible":true,"layout":{"serializedVersion":"2","x":10.0,"y":20.0,"width":0.0,"height":0.0}}'
+  viewTransform:
+    position: {x: 701.6493, y: 806.1245}
+    scale: 1
   version: 1.0.0
   showAssembly: 1

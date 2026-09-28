@@ -54,7 +54,6 @@ namespace VRC.SDK3.ClientSim
             // Catch Helper not initialized.
             if (_spatialAudioSource == null)
             {
-                this.LogWarning($"Destroying uninitialized Helper. Object: {Tools.GetGameObjectPath(gameObject)}");
                 DestroyImmediate(this);
             }
         }
